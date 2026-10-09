@@ -1,42 +1,30 @@
-import { useMemo, useRef } from "react";
+import { forwardRef, useImperativeHandle, useMemo, useRef } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
-import { Html } from "@react-three/drei";
 import * as THREE from "three";
 import type { Circuit } from "../../lib/circuit";
+import type { QualitySettings } from "../../lib/quality";
 import { baselineLaps, placeCar, placeOptsFor, poseOf, type LapPoint, type RaceClock } from "../../lib/raceClock";
-import type { CarSummary } from "../../types/race";
-import type { RaceState } from "../../types/race";
-import type { LiveData } from "./live";
+import type { Compound, RaceState } from "../../types/race";
+import { CarRig, type CarRigApi, type RigUpdate } from "./CarRig";
+import { liveryFor, type Livery } from "./livery";
+import type { CarLive, LiveData } from "./live";
+import { Safe } from "./Safe";
 
-/** Low-poly formula car. Local +X is the nose; dimensions in metres (real scale), enlarged at render. */
-export function CarModel({ color, ghost = false }: { color: string; ghost?: boolean }) {
-  const body = useMemo(() => new THREE.MeshStandardMaterial({
-    color, metalness: 0.35, roughness: 0.4, transparent: ghost, opacity: ghost ? 0.35 : 1,
-  }), [color, ghost]);
-  const dark = useMemo(() => new THREE.MeshStandardMaterial({ color: "#0c0d10", roughness: 0.7, transparent: ghost, opacity: ghost ? 0.35 : 1 }), [ghost]);
-  const white = useMemo(() => new THREE.MeshStandardMaterial({ color: "#f2f2f2", roughness: 0.5, transparent: ghost, opacity: ghost ? 0.35 : 1 }), [ghost]);
+/** Shown if a car model fails to load: a plain coloured block that keeps the simulation fully usable. */
+const FallbackRig = forwardRef<CarRigApi, { color: string }>(function FallbackRig({ color }, ref) {
+  const root = useRef<THREE.Group>(null);
+  useImperativeHandle(ref, () => ({
+    get root() { return root.current!; },
+    update() { /* no animation for the fallback */ },
+    setSelected() { /* no ring */ },
+    setScale(s: number) { root.current?.scale.setScalar(s); },
+  }), []);
   return (
-    <group>
-      <mesh material={body} position={[0.2, 0.5, 0]} castShadow><boxGeometry args={[3.0, 0.5, 0.85]} /></mesh>
-      <mesh material={body} position={[2.3, 0.38, 0]} castShadow><boxGeometry args={[1.6, 0.22, 0.45]} /></mesh>
-      <mesh material={white} position={[0.3, 0.78, 0]}><boxGeometry args={[2.2, 0.06, 0.18]} /></mesh>
-      <mesh material={dark} position={[0.5, 0.9, 0]} castShadow><boxGeometry args={[0.9, 0.35, 0.5]} /></mesh>
-      <mesh material={body} position={[-1.0, 0.85, 0]} castShadow><boxGeometry args={[1.3, 0.4, 0.55]} /></mesh>
-      <mesh material={body} position={[3.1, 0.18, 0]}><boxGeometry args={[0.5, 0.06, 2.0]} /></mesh>
-      <mesh material={white} position={[3.1, 0.3, 1.0]}><boxGeometry args={[0.5, 0.25, 0.06]} /></mesh>
-      <mesh material={white} position={[3.1, 0.3, -1.0]}><boxGeometry args={[0.5, 0.25, 0.06]} /></mesh>
-      <mesh material={body} position={[-2.2, 1.25, 0]} castShadow><boxGeometry args={[0.55, 0.06, 1.7]} /></mesh>
-      <mesh material={dark} position={[-2.2, 0.95, 0.8]}><boxGeometry args={[0.55, 0.7, 0.05]} /></mesh>
-      <mesh material={dark} position={[-2.2, 0.95, -0.8]}><boxGeometry args={[0.55, 0.7, 0.05]} /></mesh>
-      <mesh material={body} position={[-2.0, 0.55, 0]}><boxGeometry args={[0.8, 0.2, 0.5]} /></mesh>
-      {[[1.9, 1.0, 0.33], [1.9, -1.0, 0.33], [-1.5, 1.05, 0.38], [-1.5, -1.05, 0.38]].map(([x, z, r], i) => (
-        <mesh key={i} material={dark} position={[x, r, z]} rotation={[Math.PI / 2, 0, 0]} castShadow>
-          <cylinderGeometry args={[r, r, i < 2 ? 0.5 : 0.7, 14]} />
-        </mesh>
-      ))}
+    <group ref={root}>
+      <mesh position={[0, 0.55, 0]} castShadow><boxGeometry args={[5.4, 0.8, 1.8]} /><meshStandardMaterial color={color} roughness={0.5} /></mesh>
     </group>
   );
-}
+});
 
 interface Props {
   circuit: Circuit;
@@ -45,20 +33,33 @@ interface Props {
   live: React.MutableRefObject<LiveData>;
   selectedId: string;
   onSelect: (id: string) => void;
+  q: QualitySettings;
 }
 
 const _v = new THREE.Vector3();
+const SC_LIVERY: Livery = { primary: "#ffb020", secondary: "#16181d", number: 0, model: "race" };
 
-export default function Cars({ circuit: c, state, clock, live, selectedId, onSelect }: Props) {
+interface Track { x: number; y: number; t: number; speed: number; brake: number; init: boolean }
+
+export default function Cars({ circuit: c, state, clock, live, selectedId, onSelect, q }: Props) {
   const camera = useThree((s) => s.camera);
-  const groups = useRef<Record<string, THREE.Group | null>>({});
-  const ghostRef = useRef<THREE.Group>(null);
-  const scRef = useRef<THREE.Group>(null);
+  const rigs = useRef<Record<string, CarRigApi | null>>({});
+  const ghostRig = useRef<CarRigApi | null>(null);
+  const scGroup = useRef<THREE.Group>(null);
+  const scRig = useRef<CarRigApi | null>(null);
+  const lightbar = useRef<THREE.MeshStandardMaterial>(null);
   const beacon = useRef<THREE.Mesh>(null);
-  const scLabel = useRef<HTMLDivElement>(null);
-  const cars = state.cars;
   const stateRef = useRef(state);
   stateRef.current = state;
+  const tracks = useRef<Map<string, Track>>(new Map());
+
+  const cars = state.cars;
+  const liveries = useMemo(() => {
+    const out = new Map<string, Livery>();
+    let rival = 0;
+    cars.forEach((car) => out.set(car.id, liveryFor(car.is_primary ? 0 : rival++, car.color, car.is_primary)));
+    return out;
+  }, [cars.map((c0) => c0.id + c0.color).join("|")]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const opts = useMemo(() => {
     const m = new Map<string, ReturnType<typeof placeOptsFor>>();
@@ -67,15 +68,18 @@ export default function Cars({ circuit: c, state, clock, live, selectedId, onSel
     return m;
   }, [c, cars.length, state.pit_service_ratio]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  useFrame(({ clock: three }) => {
+  useFrame(({ clock: three }, dtWall) => {
     const s = stateRef.current;
-    const t = clock.now();
     const L = live.current;
+    const t = clock.now();
+    const dtRace = t - L.raceT;
     L.raceT = t;
     let leader = -Infinity;
     // after the flag each car coasts to its own stopping point (winner furthest on) so they do not stack
     const rank = new Map<string, number>();
-    [...s.cars].sort((a, b) => a.elapsed_s - b.elapsed_s).forEach((c, i) => rank.set(c.id, i));
+    [...s.cars].sort((a, b) => a.elapsed_s - b.elapsed_s).forEach((car, i) => rank.set(car.id, i));
+    L.finished = s.status === "finished";
+
     for (const car of s.cars) {
       const o = { ...opts.get(car.id)!, rollCap: 0.085 - 0.0085 * (rank.get(car.id) ?? 0) };
       const laps: LapPoint[] = car.laps;
@@ -87,23 +91,50 @@ export default function Cars({ circuit: c, state, clock, live, selectedId, onSel
         const lat = (car.grid_slot % 2 ? 3.2 : -3.2) * Math.min(1, Math.max(0, 1 - Math.max(0, place.total) / 0.012));
         x += -pose.ty * lat; y += pose.tx * lat;
       }
-      L.poses.set(car.id, { x, y, tx: pose.tx, ty: pose.ty, place });
-      const g = groups.current[car.id];
-      if (g) {
-        g.position.set(x, 0.12, -y);
-        g.rotation.y = Math.atan2(pose.ty, pose.tx);
-        const d = camera.position.distanceTo(_v.set(x, 0, -y));
-        const base = Math.min(4.2, Math.max(1.3, d * 0.0085));
-        g.scale.setScalar(car.is_primary ? base * 1.12 : base);
+      // speed from the authoritative timing (distance / race time), smoothed
+      let tr = tracks.current.get(car.id);
+      if (!tr) { tr = { x, y, t, speed: 0, brake: 0, init: false }; tracks.current.set(car.id, tr); }
+      if (dtRace > 1e-4 && tr.init) {
+        const v = Math.hypot(x - tr.x, y - tr.y) / dtRace;
+        const vs = tr.speed + (Math.min(v, 120) - tr.speed) * Math.min(1, dtWall * 8);
+        const dec = (tr.speed - vs) / Math.max(dtRace, 1e-3);
+        tr.brake += (THREE.MathUtils.clamp(dec / 20, 0, 1) - tr.brake) * Math.min(1, dtWall * 10);
+        tr.speed = vs;
+      } else if (dtRace <= 1e-4) {
+        tr.speed *= Math.exp(-dtWall * 5); tr.brake *= Math.exp(-dtWall * 8);
       }
-      if (car.is_primary) {
-        L.primaryPit = place.kind === "pit" ? (place.stopped ? "stopped" : place.s < c.pit.lineDist ? "in" : "out") : "none";
-      }
+      tr.x = x; tr.y = y; tr.t = t; tr.init = true;
+
+      const kappa = place.kind === "track" ? c.kappa[Math.round(place.frac * c.n) % c.n] : 0;
+      const steer = THREE.MathUtils.clamp(Math.atan(2.8 * kappa) * 1.6, -0.5, 0.5);
+      const cur: CarLive = { x, y, tx: pose.tx, ty: pose.ty, place, speed: tr.speed, brake: tr.brake, steer };
+      L.poses.set(car.id, cur);
+
+      const rig = rigs.current[car.id];
+      if (!rig) continue;
+      const g = rig.root;
+      g.position.set(x, 0.02, -y);
+      g.rotation.y = Math.atan2(pose.ty, pose.tx);
+      const d = camera.position.distanceTo(_v.set(x, 0, -y));
+      const base = Math.min(4.2, Math.max(1.0, d * 0.0085));
+      rig.setScale(car.is_primary ? base * 1.12 : base);
+      rig.setSelected(car.id === selectedId);
+
+      const phase: RigUpdate["pit"] = place.kind === "pit" ? (place.stopped ? "stopped" : place.s < c.pit.lineDist ? "in" : "out") : "none";
+      if (car.is_primary) L.primaryPit = phase === "none" ? "none" : phase;
+      const lapIdx = Math.min(Math.max(place.lapNo - 1, 0), Math.max(0, car.laps.length - 1));
+      let compound: Compound = car.laps[lapIdx]?.compound ?? car.compound;
+      if (place.kind === "pit" && place.swapped) compound = car.laps[lapIdx + 1]?.compound ?? car.compound;
+      if (place.kind === "track" && place.lapNo >= 2 && car.laps[place.lapNo - 2]?.pitted) compound = car.laps[lapIdx]?.compound ?? compound;
+      rig.update({
+        dt: dtWall, speed: tr.speed, brake: tr.brake, steer, latAccel: tr.speed * tr.speed * kappa, wet: L.wet,
+        pit: phase, compound, pitLaunch: phase === "out" ? THREE.MathUtils.clamp(tr.speed / 40, 0, 1) * (1 - Math.min(1, (place.kind === "pit" ? place.s : 0) / (c.pit.lineDist + 60))) : 0,
+      });
     }
     L.leaderTotal = leader;
 
-    // visual weather / safety-car state comes from the lap the clock is currently inside
-    const prim = s.cars.find((q) => q.is_primary);
+    // weather and safety-car state of the lap currently on screen; wetness eases toward its target
+    const prim = s.cars.find((q0) => q0.is_primary);
     if (prim && s.laps.length) {
       let lo = 0, hi = prim.laps.length;
       while (lo < hi) { const mid = (lo + hi) >> 1; if (prim.laps[mid].elapsed_s > t) hi = mid; else lo = mid + 1; }
@@ -114,75 +145,73 @@ export default function Cars({ circuit: c, state, clock, live, selectedId, onSel
       L.wetness = s.conditions.track_wetness;
       L.safetyCar = false;
     }
+    L.wet += (L.wetness - L.wet) * (1 - Math.exp(-dtWall * 0.9));
 
-    // baseline ghost
-    if (s.baseline && ghostRef.current) {
-      const bl = baselineLaps(s);
-      const place = placeCar(bl, t, opts.get("__ghost")!);
-      const pose = poseOf(c, place);
-      L.ghost = { x: pose.x, y: pose.y, tx: pose.tx, ty: pose.ty, place };
-      ghostRef.current.visible = true;
-      ghostRef.current.position.set(pose.x, 0.3, -pose.y);
-      ghostRef.current.rotation.y = Math.atan2(pose.ty, pose.tx);
-      const d = camera.position.distanceTo(_v.set(pose.x, 0, -pose.y));
-      ghostRef.current.scale.setScalar(Math.min(4.2, Math.max(1.3, d * 0.0085)));
-    } else if (ghostRef.current) ghostRef.current.visible = false;
-
-    // safety car leads the field
-    if (scRef.current) {
-      scRef.current.visible = L.safetyCar;
-      if (scLabel.current) scLabel.current.style.display = L.safetyCar ? "block" : "none";
-      if (L.safetyCar) {
-        const lf = ((leader % 1) + 1) % 1;
-        const p = c.pointAt(lf + 140 / c.length);
-        scRef.current.position.set(p.x, 0.12, -p.y);
-        scRef.current.rotation.y = Math.atan2(p.ty, p.tx);
-        const d = camera.position.distanceTo(_v.set(p.x, 0, -p.y));
-        scRef.current.scale.setScalar(Math.min(4.2, Math.max(1.3, d * 0.0085)));
+    // baseline shadow car (what the fixed-stint strategy is doing under the same events)
+    const gRig = ghostRig.current;
+    if (gRig) {
+      gRig.root.visible = !!s.baseline;
+      if (s.baseline) {
+        const bl = baselineLaps(s);
+        const place = placeCar(bl, t, opts.get("__ghost")!);
+        const pose = poseOf(c, place);
+        L.ghost = { x: pose.x, y: pose.y, tx: pose.tx, ty: pose.ty, place, speed: 0, brake: 0, steer: 0 };
+        gRig.root.position.set(pose.x, 0.05, -pose.y);
+        gRig.root.rotation.y = Math.atan2(pose.ty, pose.tx);
+        gRig.setScale(Math.min(4.2, Math.max(1.0, camera.position.distanceTo(_v.set(pose.x, 0, -pose.y)) * 0.0085)));
       }
     }
-    // pulsing beacon on the strategy car
+
+    // safety car leads the field
+    const sg = scGroup.current;
+    if (sg) {
+      sg.visible = L.safetyCar;
+      if (L.safetyCar) {
+        const lf = ((leader % 1) + 1) % 1;
+        const p = c.pointAt(lf + 150 / c.length);
+        sg.position.set(p.x, 0.02, -p.y);
+        sg.rotation.y = Math.atan2(p.ty, p.tx);
+        sg.scale.setScalar(Math.min(4.2, Math.max(1.0, camera.position.distanceTo(_v.set(p.x, 0, -p.y)) * 0.0085)));
+        scRig.current?.update({ dt: dtWall, speed: 20, brake: 0, steer: 0, latAccel: 0, wet: L.wet, pit: "none", compound: "MEDIUM", pitLaunch: 0 });
+        if (lightbar.current) lightbar.current.emissiveIntensity = 1.2 + 3 * (Math.sin(three.elapsedTime * 14) > 0 ? 1 : 0);
+      }
+    }
+
+    // pulsing beacon on the strategy car so it can be found from the overview camera
     const pp = L.poses.get(prim?.id ?? "");
-    if (beacon.current && pp) {
-      beacon.current.position.set(pp.x, 0, -pp.y);
-      const sc = 1 + 0.25 * Math.sin(three.elapsedTime * 4);
+    const b = beacon.current;
+    if (b && pp) {
       const d = camera.position.distanceTo(_v.set(pp.x, 0, -pp.y));
-      const k = Math.min(60, Math.max(10, d * 0.04));
-      beacon.current.scale.set(k * 0.35 * sc, k, k * 0.35 * sc);
-      beacon.current.position.y = k * 0.5;
-      beacon.current.visible = d > 120;
+      const k = Math.min(60, Math.max(10, d * 0.04)), sc = 1 + 0.25 * Math.sin(three.elapsedTime * 4);
+      b.position.set(pp.x, k * 0.5, -pp.y);
+      b.scale.set(k * 0.35 * sc, k, k * 0.35 * sc);
+      b.visible = d > 140;
     }
   });
 
   return (
     <group>
-      {cars.map((car: CarSummary) => (
-        <group key={car.id} ref={(g) => { groups.current[car.id] = g; }}
-          onClick={(e) => { e.stopPropagation(); onSelect(car.id); }}>
-          <CarModel color={car.color} />
-          <mesh position={[0.2, 1, 0]} visible={true}>
-            <sphereGeometry args={[5, 8, 8]} />
-            <meshBasicMaterial transparent opacity={0} depthWrite={false} />
+      {cars.map((car) => {
+        const lv = liveries.get(car.id)!;
+        const props = { livery: lv, label: car.code, primary: car.is_primary, q, accent: car.color, onClick: () => onSelect(car.id) };
+        return (
+          <Safe key={car.id} name={`car ${car.code}`}
+            fallback={<FallbackRig ref={(r) => { rigs.current[car.id] = r; }} color={car.color} />}>
+            <CarRig ref={(r) => { rigs.current[car.id] = r; }} {...props} />
+          </Safe>
+        );
+      })}
+      <Safe name="baseline ghost car">
+        <CarRig ref={(r) => { ghostRig.current = r; }} livery={SC_LIVERY} label="BASE" primary={false} ghost q={q} accent="#ffffff" />
+      </Safe>
+      <group ref={scGroup} visible={false}>
+        <Safe name="safety car">
+          <CarRig ref={(r) => { scRig.current = r; }} livery={SC_LIVERY} label="SC" primary={false} q={q} accent="#ffb020" />
+          <mesh position={[-0.2, 1.52, 0]}>
+            <boxGeometry args={[0.5, 0.14, 1.9]} />
+            <meshStandardMaterial ref={lightbar} color="#ffb020" emissive="#ff8800" emissiveIntensity={2} />
           </mesh>
-          {selectedId === car.id && (
-            <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0.2, 0.05, 0]}>
-              <ringGeometry args={[3.6, 4.2, 40]} />
-              <meshBasicMaterial color="#ffffff" transparent opacity={0.9} side={THREE.DoubleSide} />
-            </mesh>
-          )}
-          <Html position={[0.2, car.is_primary ? 4.2 : 3.2, 0]} center zIndexRange={[20, 0]} style={{ pointerEvents: "none" }}>
-            <div className={`num uppercase whitespace-nowrap leading-none ${car.is_primary ? "text-[17px] px-2 py-[2px]" : "text-[12px] px-[5px]"}`}
-              style={{ background: car.is_primary ? "#ff2d3a" : "rgba(0,0,0,.65)", color: "#fff", border: `1px solid ${car.color}` }}>
-              {car.is_primary ? "STRATEGY CAR" : car.code}
-            </div>
-          </Html>
-        </group>
-      ))}
-      <group ref={ghostRef} visible={false}><CarModel color="#ffffff" ghost /></group>
-      <group ref={scRef} visible={false}>
-        <CarModel color="#ffcc00" />
-        <mesh position={[0.2, 1.4, 0]}><boxGeometry args={[0.4, 0.15, 1.2]} /><meshBasicMaterial color="#ff8800" /></mesh>
-        <Html position={[0.2, 4.5, 0]} center><div ref={scLabel} className="num text-[12px] px-1" style={{ background: "#ffb020", color: "#000", display: "none" }}>SAFETY CAR</div></Html>
+        </Safe>
       </group>
       <mesh ref={beacon}>
         <cylinderGeometry args={[1, 1, 1, 12, 1, true]} />

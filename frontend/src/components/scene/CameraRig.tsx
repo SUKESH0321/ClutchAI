@@ -32,7 +32,26 @@ export default function CameraRig({ circuit: c, mode, resetKey, followId, live }
     return { cx, cz, r };
   }, [c]);
 
+  // corner apexes (local maxima of |curvature|) for the trackside corner camera
+  const apexes = useMemo(() => {
+    const out: { x: number; z: number; ox: number; oz: number }[] = [];
+    let last = -1e9;
+    for (let i = 0; i < c.n; i++) {
+      const k = Math.abs(c.kappa[i]);
+      const prev = Math.abs(c.kappa[(i - 1 + c.n) % c.n]), next = Math.abs(c.kappa[(i + 1) % c.n]);
+      if (k > 0.006 && k >= prev && k >= next && i - last > 12) {
+        last = i;
+        const side = c.kappa[i] > 0 ? -1 : 1;                // outside of the bend
+        const nx = -c.ty[i] * side, ny = c.tx[i] * side;
+        out.push({ x: c.x[i], z: -c.y[i], ox: c.x[i] + nx * 38, oz: -(c.y[i] + ny * 38) });
+      }
+    }
+    return out;
+  }, [c]);
+  const cornerIdx = useRef(-1);
+
   useEffect(() => {
+    cornerIdx.current = -1;
     transition.current = 1.6; // seconds of smooth transition
     const { cx, cz } = view;
     const r = view.r * Math.max(1.14, 1.9 / aspect);   // keep the whole circuit in frame on narrow views
@@ -45,20 +64,40 @@ export default function CameraRig({ circuit: c, mode, resetKey, followId, live }
     }
     if (controls.current) {
       controls.current.enableRotate = mode !== "top";
-      controls.current.enabled = mode !== "follow";
+      controls.current.enabled = mode !== "follow" && mode !== "chase" && mode !== "corner";
     }
   }, [mode, resetKey, view, aspect > 1.6 ? 2 : aspect > 1.2 ? 1 : 0]);  // eslint-disable-line react-hooks/exhaustive-deps
 
   useFrame((_, dt) => {
     const ctl = controls.current;
     if (!ctl) return;
-    if (mode === "follow") {
+    if (mode === "corner") {
+      const p = live.current.poses.get(followId);
+      if (p && apexes.length) {
+        const px = p.x, pz = -p.y;
+        let cur = cornerIdx.current;
+        const ahead = (a: { x: number; z: number }) => (a.x - px) * p.tx + (a.z - pz) * -p.ty;
+        if (cur < 0 || ahead(apexes[cur]) < -70) {
+          let best = -1, bd = 1e9;
+          apexes.forEach((a, i) => { const d = Math.hypot(a.x - px, a.z - pz); if (ahead(a) > -20 && d < bd) { bd = d; best = i; } });
+          cur = cornerIdx.current = best < 0 ? 0 : best;
+        }
+        const a = apexes[cur];
+        const k = 1 - Math.exp(-3.5 * dt);
+        camera.position.lerp(new THREE.Vector3(a.ox, 6, a.oz), k);
+        ctl.target.lerp(new THREE.Vector3(px, 1.2, pz), k);
+        ctl.update();
+      }
+      return;
+    }
+    if (mode === "follow" || mode === "chase") {
       const p = live.current.poses.get(followId);
       if (p) {
-        const back = 19, up = 7;
-        const desired = new THREE.Vector3(p.x - p.tx * back, up, -(p.y - p.ty * back));
-        const look = new THREE.Vector3(p.x + p.tx * 28, 0.5, -(p.y + p.ty * 28));
-        const k = 1 - Math.exp(-5 * dt);
+        const chase = mode === "chase";
+        const back = chase ? 9 : 19, up = chase ? 2.4 : 7;
+        const desired = new THREE.Vector3(p.x - p.tx * back, Math.max(1.5, up), -(p.y - p.ty * back));
+        const look = new THREE.Vector3(p.x + p.tx * (chase ? 40 : 28), chase ? 1.4 : 0.5, -(p.y + p.ty * (chase ? 40 : 28)));
+        const k = 1 - Math.exp(-(chase ? 7 : 5) * dt);
         camera.position.lerp(desired, k);
         ctl.target.lerp(look, k);
         ctl.update();

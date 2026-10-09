@@ -286,13 +286,30 @@ Click a car or a row in the timing tower to select it and inspect its telemetry.
 `GET /api/evaluation/{status,results,results.csv}` · `WS /ws/race`. The REST polling fallback activates automatically
 if the WebSocket drops.
 
+## Visual upgrade: assets, cameras, quality
+The web view uses locally stored CC0 assets (see [ASSET_CREDITS.md](ASSET_CREDITS.md)): Kenney race-car GLBs recoloured per
+fictional team (wheel spin from real distance, steering from track curvature, pitch/roll, brake lights, number decals),
+Poly Haven PBR asphalt/grass/gravel/concrete/rubber, HDRI skies (dry and overcast), terrain hills, kerbs, barriers, tyre
+walls, grandstands, pit garages, lamp posts, fences, marshal posts, trees and fictional ad boards.
+Weather is driven by the simulation's wetness: HDRI cross-fade, fog, darker/shinier asphalt with puddles, rain streaks and
+car spray. Visuals never change lap times, fuel, wear or benchmarks.
+
+* Cameras: 3D view, Top-down, Follow car, Low chase, Corner (trackside, picks the next corner), Overview (reset).
+* Quality selector (top right of the view): performance / balanced (default) / high / ultra change DPR, shadow resolution,
+  tree/tyre-wall/spray/rain counts, reflections and fog. `?quality=low` forces performance. `?cam=chase` opens in a camera mode.
+* If a model or texture fails to load the affected element is skipped or replaced with a simple primitive; the race still runs.
+
 ## Known limitations and unverified items
 
 * Circuit data: centerline and widths are real (TUM FTM database, OpenStreetMap-derived), but the start/finish
   position, pit lane, sector splits and corner numbering are approximations (see `data/README.md`). No elevation.
 * Rival cars are rule-based AI with no on-track interaction (no overtaking or blocking physics).
 * The optimizer searches at most two further stops; the safety-car pit discount is a multiplicative simplification.
-* The 3D scene uses enlarged cars and procedural scenery. **Frame rate was not measured**: the preview browser used for
+* Not done in the visual upgrade: pit-crew characters (models downloaded, not wired in), crowd on the grandstands, a
+  start-light countdown and chequered-flag effect, curvature-based braking/acceleration speed profile (cars follow the
+  authoritative lap times with smooth interpolation only), skid marks (no modeled cause), LOD levels. Cars are low-poly
+  Kenney models, not detailed F1 models. Screenshots were taken in headless Chrome with software GL (SwiftShader).
+* The 3D scene uses enlarged cars. **Frame rate was not measured**: the preview browser used for
   development throttles animation when its pane is hidden, so only functional behaviour was verified there.
   Tested on one Intel UHD integrated GPU in that preview only; not tested on other browsers or touch devices.
 * Parameters are synthetic. Benchmarks assume the sampler prior matches the world generator.

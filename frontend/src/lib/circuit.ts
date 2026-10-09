@@ -36,6 +36,8 @@ export interface Circuit {
   step: number;
   x: Float64Array; y: Float64Array; tx: Float64Array; ty: Float64Array;
   hl: Float64Array; hr: Float64Array;
+  /** signed curvature (1/m), positive = left turn, per centerline sample */
+  kappa: Float64Array;
   pit: { x: Float64Array; y: Float64Array; tx: Float64Array; ty: Float64Array; cum: Float64Array;
     length: number; lineDist: number; entryDist: number; exitDist: number };
   /** pose at lap fraction f in [0,1), 0 = start/finish line */
@@ -72,6 +74,14 @@ export function buildCircuit(data: CircuitData): Circuit {
     tx[i] = dx / l; ty[i] = dy / l;
   }
   const step = data.length_m / n;
+  const kappa = new Float64Array(n);
+  for (let i = 0; i < n; i++) {
+    const a = Math.atan2(ty[wrap(i - 2, n)], tx[wrap(i - 2, n)]), b = Math.atan2(ty[wrap(i + 2, n)], tx[wrap(i + 2, n)]);
+    let d = b - a;
+    while (d > Math.PI) d -= 2 * Math.PI;
+    while (d < -Math.PI) d += 2 * Math.PI;
+    kappa[i] = d / (4 * step);
+  }
 
   // pit lane polyline
   const pp = data.pit_lane.points;
@@ -126,7 +136,7 @@ export function buildCircuit(data: CircuitData): Circuit {
     return best;
   };
 
-  return { data, n, length: data.length_m, step, x, y, tx, ty, hl, hr, pit, pointAt, pitAt, distanceToTrack };
+  return { data, n, length: data.length_m, step, x, y, tx, ty, hl, hr, kappa, pit, pointAt, pitAt, distanceToTrack };
 }
 
 const cache = new Map<string, Circuit>();

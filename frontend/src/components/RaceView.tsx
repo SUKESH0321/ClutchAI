@@ -7,6 +7,7 @@ import { fmtLap, pct } from "../lib/format";
 import Scene3D from "./scene/Scene3D";
 import { newLive, type CamMode } from "./scene/live";
 import { Chip } from "./ui/Panel";
+import { setQuality, useQuality, type QualityLevel } from "../lib/quality";
 
 class Boundary extends Component<{ children: ReactNode }, { err: string | null }> {
   state = { err: null as string | null };
@@ -67,8 +68,9 @@ interface Props { state: RaceState; clock: RaceClock; drawerOpen: boolean }
 export default function RaceView({ state, clock, drawerOpen }: Props) {
   const circuit = useMemo(() => getCircuit(state.circuit_id), [state.circuit_id]);
   const live = useRef(newLive());
-  const [mode, setMode] = useState<CamMode>("cinematic");
+  const [mode, setMode] = useState<CamMode>(() => (new URLSearchParams(window.location.search).get("cam") as CamMode) || "cinematic");
   const [resetKey, setResetKey] = useState(0);
+  const quality = useQuality();
   const primary = state.cars.find((c) => c.is_primary)!;
   const [selected, setSelected] = useState(primary.id);
   const rows = useStandings(state, live);
@@ -120,12 +122,16 @@ export default function RaceView({ state, clock, drawerOpen }: Props) {
 
       {/* camera controls */}
       <div className="absolute top-3 left-3 flex flex-wrap gap-1 z-10">
-        {(["cinematic", "top", "follow"] as CamMode[]).map((m) => (
+        {(["cinematic", "top", "follow", "chase", "corner"] as CamMode[]).map((m) => (
           <button key={m} className={`btn !px-3 !py-[3px] !text-[13px] ${mode === m ? "btn-primary" : ""}`} onClick={() => setMode(m)}>
-            {m === "cinematic" ? "3D view" : m === "top" ? "Top-down" : "Follow car"}
+            {m === "cinematic" ? "3D view" : m === "top" ? "Top-down" : m === "follow" ? "Follow car" : m === "chase" ? "Low chase" : "Corner"}
           </button>
         ))}
-        <button className="btn !px-3 !py-[3px] !text-[13px]" onClick={() => { setMode("cinematic"); setResetKey((k) => k + 1); }}>Reset camera</button>
+        <button className="btn !px-3 !py-[3px] !text-[13px]" onClick={() => { setMode("cinematic"); setResetKey((k) => k + 1); }}>Overview</button>
+        <select aria-label="Graphics quality" className="btn !px-2 !py-[3px] !text-[13px] !fixed top-[70px] right-[118px] z-10" value={quality.level}
+          onChange={(e) => setQuality(e.target.value as QualityLevel)}>
+          {(["performance", "balanced", "high", "ultra"] as QualityLevel[]).map((l) => <option key={l} value={l}>{l}</option>)}
+        </select>
       </div>
 
       {/* timing tower */}

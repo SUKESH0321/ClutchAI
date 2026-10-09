@@ -2,12 +2,13 @@ import { useMemo, useRef } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
 import type { LiveData } from "./live";
+import type { QualitySettings } from "../../lib/quality";
 
-const COUNT = 2600;
 const BOX = 260;
 
 /** Rain streaks around the camera target; density follows the on-screen lap's track wetness. */
-export default function Rain({ live }: { live: React.MutableRefObject<LiveData> }) {
+export default function Rain({ live, q }: { live: React.MutableRefObject<LiveData>; q: QualitySettings }) {
+  const COUNT = Math.max(1, q.rain);
   const lines = useRef<THREE.LineSegments>(null);
   const camera = useThree((s) => s.camera);
   const base = useMemo(() => {
@@ -18,8 +19,8 @@ export default function Rain({ live }: { live: React.MutableRefObject<LiveData> 
       a[i * 3 + 2] = (Math.random() - 0.5) * BOX;
     }
     return a;
-  }, []);
-  const pos = useMemo(() => new Float32Array(COUNT * 6), []);
+  }, [COUNT]);
+  const pos = useMemo(() => new Float32Array(COUNT * 6), [COUNT]);
   const geo = useMemo(() => {
     const g = new THREE.BufferGeometry();
     g.setAttribute("position", new THREE.BufferAttribute(pos, 3));
@@ -29,7 +30,7 @@ export default function Rain({ live }: { live: React.MutableRefObject<LiveData> 
   useFrame(({ clock }) => {
     const m = lines.current;
     if (!m) return;
-    const w = live.current.wetness;
+    const w = live.current.wet;
     const n = Math.floor(COUNT * Math.min(1, Math.max(0, (w - 0.05) * 1.3)));
     m.visible = n > 0;
     if (!n) return;

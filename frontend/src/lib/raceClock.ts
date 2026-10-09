@@ -30,7 +30,7 @@ export interface PlaceOpts {
 
 export type Place =
   | { kind: "track"; frac: number; total: number; lapNo: number }
-  | { kind: "pit"; s: number; total: number; lapNo: number; stopped: boolean };
+  | { kind: "pit"; s: number; total: number; lapNo: number; stopped: boolean; swapped: boolean };
 
 function lapIndexAt(laps: LapPoint[], t: number): number {
   let lo = 0, hi = laps.length; // first lap whose elapsed_s > t
@@ -71,17 +71,17 @@ export function placeCar(laps: LapPoint[], t: number, o: PlaceOpts): Place {
     const toBox = Math.max(1, o.laneIn - o.boxBeforeM);
     const travelA = travel * (toBox / o.laneIn);
     const t2 = tt - tMain;
-    let s: number, stopped = false;
+    let s: number, stopped = false, swapped = false;
     if (t2 < travelA) s = (t2 / travelA) * toBox;
     else if (t2 < travelA + service) { s = toBox; stopped = true; }
-    else s = toBox + ((t2 - travelA - service) / Math.max(1e-6, travel - travelA)) * (o.laneIn - toBox);
-    return { kind: "pit", s: Math.min(s, o.laneIn), total: idx + fe + (s / o.laneIn) * (1 - fe), lapNo: lap.lap, stopped };
+    else { s = toBox + ((t2 - travelA - service) / Math.max(1e-6, travel - travelA)) * (o.laneIn - toBox); swapped = true; }
+    return { kind: "pit", s: Math.min(s, o.laneIn), total: idx + fe + (s / o.laneIn) * (1 - fe), lapNo: lap.lap, stopped, swapped };
   }
 
   let f = tt / lt;
   if (idx === 0) f = -o.gridFrac + (1 + o.gridFrac) * f;
   if (prevPitted && f >= 0 && f < fx) {
-    return { kind: "pit", s: o.laneIn + (f / fx) * o.laneOut, total: idx + f, lapNo: lap.lap, stopped: false };
+    return { kind: "pit", s: o.laneIn + (f / fx) * o.laneOut, total: idx + f, lapNo: lap.lap, stopped: false, swapped: true };
   }
   return { kind: "track", frac: (f + 1) % 1, total: idx + f, lapNo: lap.lap };
 }
