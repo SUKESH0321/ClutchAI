@@ -35,9 +35,9 @@ export default function CameraRig({ circuit: c, mode, resetKey, followId, live }
   useEffect(() => {
     transition.current = 1.6; // seconds of smooth transition
     const { cx, cz } = view;
-    const r = view.r * Math.max(1, 1.9 / aspect);   // keep the whole circuit in frame on narrow views
+    const r = view.r * Math.max(1.14, 1.9 / aspect);   // keep the whole circuit in frame on narrow views
     if (mode === "cinematic") {
-      goal.current.pos.set(cx - r * 0.2, r * 0.74, cz + r * 0.7);
+      goal.current.pos.set(cx - r * 0.22, r * 0.95, cz + r * 0.88);
       goal.current.look.set(cx, 0, cz);
     } else if (mode === "top") {
       goal.current.pos.set(cx, r * 1.12, cz + r * 0.06);

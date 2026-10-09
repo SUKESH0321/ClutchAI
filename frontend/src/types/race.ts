@@ -52,7 +52,7 @@ export interface CarSummary {
 }
 export interface RaceState {
   version: number; status: RaceStatus; config_name: string; seed: number; lap: number; total_laps: number;
-  max_wear: number; circuit_id: string; pit_service_ratio: number; cars: CarSummary[]; elapsed_s: number; speed: number; replan_count: number;
+  max_wear: number; fuel_reserve_kg: number; circuit_id: string; pit_service_ratio: number; cars: CarSummary[]; elapsed_s: number; speed: number; replan_count: number;
   car: CarState; conditions: Conditions; laps: LapRecord[]; stints: Stint[];
   recommendation: Recommendation | null; events: RaceEvent[]; baseline: BaselineShadow | null;
 }

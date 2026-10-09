@@ -181,12 +181,30 @@ cd backend;  .\.venv\Scripts\python.exe -m app.demo            # headless demo s
 ## Demo script
 
 1. Reset on `demo` (seed 42, no random events). Start at 2x. Note the optimizer's first plan (Medium to Hard around lap 11).
-2. At lap 8 press **Heavy rain**. Watch the WEATHER_CHANGE replan, the red "Proposed stop: WET" pit lane, and the car boxing.
+2. At lap 8 open the race console (wheel button), go to **Events & controls** and press **Heavy rain**. Watch the WEATHER_CHANGE replan, the red "Proposed stop: WET" pit lane, and the car boxing.
    The baseline ghost car (white outline) stays on slicks until its fixed stop.
-3. Around lap 13 press **Deploy safety car**. The field slows to safety-car pace, and the pit cost shown in the explanation drops.
+3. Around lap 13 press **Deploy safety car** (same tab). The field slows to safety-car pace, and the pit cost shown in the explanation drops.
 4. Finish the race (or press **Finish**); compare the strategy timeline of the adaptive car and the baseline.
 5. Run the benchmark panel (100 trials takes about 25 s) or load the saved results.
 Backup: reset on `demo_scripted` (rain at lap 8 and a safety car at lap 14 are pre-scheduled) and just press Start.
+
+## Interface layout
+
+A deep maroon-red racing identity. The 3D circuit fills the whole window under a compact single-row race header
+(status, lap, elapsed time, gap to the fixed-stint baseline, start / pause / resume / step / finish / reset, speed).
+Everything else lives in a floating **race console** that rises from the bottom when you click the **racing-wheel
+button** (bottom centre; click again, press the X, or press Esc to close). The console is closed by default, never
+resizes the 3D canvas (the view just slides up while it is open), and has five tabs:
+
+| Tab | Contents |
+|---|---|
+| Telemetry | tyres (compound, wear, age, sets left), fuel with reserve marker, last/best lap, track and rain, safety-car and race status lights, last-lap time breakdown |
+| Strategy engine | BOX THIS LAP / PIT LAP n / STAY OUT, projected and current-plan finish, best alternative, advantage, plans and futures counted, latency, trigger, explanation, warnings, top candidates (flashes when the recommendation changes) |
+| Timeline | adaptive vs baseline stints; completed, planned and next-recommended stops are drawn differently |
+| Analytics | wear and lap-time charts (solid = measured, dashed = projected) and the paired benchmark panel |
+| Events & controls | race controls, config selector, speed buttons, rain / safety-car injection, live event log |
+
+Arrow keys move between tabs. The wheel button shows a pulsing BOX badge while the optimizer wants a stop and the console is closed.
 
 ## Camera controls
 

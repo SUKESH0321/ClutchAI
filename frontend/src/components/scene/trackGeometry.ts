@@ -138,7 +138,7 @@ export function buildTrackGeometries(c: Circuit): TrackGeometries {
   const pitGlow = strip(P, () => -4.5, () => 4.5, 0.12, false);
   const garageWall = wall(P, () => -17, 0, 6.5, false);
   const garageRoof = strip(P, () => -17, () => -31, 6.5, false);
-  const pitWall = wall(P, () => 7, 0, 1.1, false, (j) => (Math.floor(j / 2) % 2 === 0 ? WHITE : col("#aeb4bf")));
+  const pitWall = wall(P, () => 7, 0, 1.1, false, (j) => (Math.floor(j / 2) % 2 === 0 ? WHITE : col("#d9c4c7")));
 
   // direction arrows every ~320 m
   const apos: number[] = [], aidx: number[] = [];

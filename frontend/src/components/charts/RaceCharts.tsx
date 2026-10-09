@@ -77,9 +77,9 @@ function ChartShell({ state, field, title, idx, unit }: { state: RaceState; fiel
       <div className="h-[230px] mt-2">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={rows} margin={{ top: 8, right: 14, left: 0, bottom: 0 }}>
-            <CartesianGrid stroke="#1f242d" vertical={false} />
-            <XAxis dataKey="lap" stroke="#5b6472" tick={{ fontSize: 10, fill: "#8a93a3" }} />
-            <YAxis stroke="#5b6472" tick={{ fontSize: 10, fill: "#8a93a3" }} width={48}
+            <CartesianGrid stroke="#6a2431" vertical={false} />
+            <XAxis dataKey="lap" stroke="#b08990" tick={{ fontSize: 10, fill: "#cfb0b4" }} />
+            <YAxis stroke="#b08990" tick={{ fontSize: 10, fill: "#cfb0b4" }} width={48}
               domain={unit === "wear" ? [0, 1] : ["auto", "auto"]}
               tickFormatter={(v: number) => (unit === "wear" ? `${Math.round(v * 100)}%` : `${Math.round(v)}s`)} />
             <Tooltip content={<Tip unit={unit} />} />
@@ -90,7 +90,7 @@ function ChartShell({ state, field, title, idx, unit }: { state: RaceState; fiel
             {state.laps.filter((l) => l.pitted).map((l) => (
               <ReferenceLine key={`p${l.lap}`} x={l.lap} stroke="#FF2D3A" strokeOpacity={0.5} />
             ))}
-            <ReferenceLine x={state.lap} stroke="#E8EAED" strokeOpacity={0.35} />
+            <ReferenceLine x={state.lap} stroke="#fff4f1" strokeOpacity={0.35} />
             <Line dataKey="proj" name="projected" stroke="#38D9F5" strokeDasharray="5 4" dot={false} strokeWidth={2} connectNulls isAnimationActive={false} />
             {COMPOUNDS.filter((c) => used.has(c)).map((c) => (
               <Line key={c} dataKey={c} name={c} stroke={COMPOUND_COLOR[c]} strokeWidth={2.5}

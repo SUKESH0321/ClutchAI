@@ -179,6 +179,7 @@ class RaceState(BaseModel):
     lap: int
     total_laps: int
     max_wear: float
+    fuel_reserve_kg: float
     circuit_id: str
     pit_service_ratio: float
     cars: list[CarSummary]

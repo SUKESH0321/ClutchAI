@@ -260,7 +260,7 @@ class RaceSession:
         b = self.baseline
         return {
             "version": self.version, "status": self.state, "config_name": self.config_name,
-            "seed": cfg.seed, "lap": e.lap, "total_laps": n, "max_wear": cfg.max_wear, "elapsed_s": e.elapsed_s,
+            "seed": cfg.seed, "lap": e.lap, "total_laps": n, "max_wear": cfg.max_wear, "fuel_reserve_kg": cfg.fuel.reserve_kg, "elapsed_s": e.elapsed_s,
             "speed": self.speed, "replan_count": self.policy.replan_count,
             "circuit_id": cfg.circuit,
             "pit_service_ratio": cfg.pit.service_s / (cfg.pit.service_s + cfg.pit.transit_s),

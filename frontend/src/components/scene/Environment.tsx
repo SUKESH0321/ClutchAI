@@ -56,12 +56,12 @@ interface Props {
 export default function Environment({ circuit: c, live, reco, boxLabel }: Props) {
   const geo = useMemo(() => buildTrackGeometries(c), [c]);
   const grassTex = useMemo(() => {
-    const t = noiseTexture("#2d5a33", ["#336a3a", "#264d2b", "#3a7842", "#23472a"]);
+    const t = noiseTexture("#3a4a30", ["#425535", "#31402a", "#4b6139", "#2d3a26"]);
     t.repeat.set(900, 900);
     return t;
   }, []);
   const fieldTex = useMemo(() => {
-    const t = noiseTexture("#3a7a42", ["#418548", "#30683a", "#468e50"]);
+    const t = noiseTexture("#4e6a3c", ["#587644","#42592f","#5e7d49"]);
     t.repeat.set(1.5, 400);
     return t;
   }, []);
@@ -193,7 +193,7 @@ export default function Environment({ circuit: c, live, reco, boxLabel }: Props)
           <planeGeometry args={[c.hl[0] + c.hr[0], 4]} />
           <meshBasicMaterial map={chk} />
         </mesh>
-        <mesh position={[0, 8, 0]} castShadow><boxGeometry args={[2, 1.6, c.hl[0] + c.hr[0] + 12]} /><meshStandardMaterial color="#12151b" /></mesh>
+        <mesh position={[0, 8, 0]} castShadow><boxGeometry args={[2, 1.6, c.hl[0] + c.hr[0] + 12]} /><meshStandardMaterial color="#3a141c" /></mesh>
         <mesh position={[0, 4, c.hl[0] + 5]} castShadow><boxGeometry args={[1.2, 8, 1.2]} /><meshStandardMaterial color="#1c2028" /></mesh>
         <mesh position={[0, 4, -(c.hr[0] + 5)]} castShadow><boxGeometry args={[1.2, 8, 1.2]} /><meshStandardMaterial color="#1c2028" /></mesh>
         <mesh position={[-1.1, 8, 0]}><boxGeometry args={[0.2, 0.7, c.hl[0] + c.hr[0] + 8]} /><meshBasicMaterial color="#ff2d3a" /></mesh>
@@ -212,10 +212,10 @@ export default function Environment({ circuit: c, live, reco, boxLabel }: Props)
 
       {/* pit entry / exit signage */}
       <Html position={[pitIn.x, 9, -pitIn.y]} center zIndexRange={[5, 0]}>
-        <div className="label !text-[10px] px-2 py-[1px]" style={{ background: "rgba(0,0,0,.65)", border: "1px solid #3a4250" }}>PIT ENTRY</div>
+        <div className="label !text-[10px] px-2 py-[1px]" style={{ background: "rgba(0,0,0,.65)", border: "1px solid #9a4655" }}>PIT ENTRY</div>
       </Html>
       <Html position={[pitOut.x, 9, -pitOut.y]} center zIndexRange={[5, 0]}>
-        <div className="label !text-[10px] px-2 py-[1px]" style={{ background: "rgba(0,0,0,.65)", border: "1px solid #3a4250" }}>PIT EXIT</div>
+        <div className="label !text-[10px] px-2 py-[1px]" style={{ background: "rgba(0,0,0,.65)", border: "1px solid #9a4655" }}>PIT EXIT</div>
       </Html>
       {proposing && (
         <Html position={[c.pitAt(c.pit.lineDist).x, 26, -c.pitAt(c.pit.lineDist).y]} center zIndexRange={[6, 0]}>
@@ -251,12 +251,12 @@ export default function Environment({ circuit: c, live, reco, boxLabel }: Props)
       {/* labels for recognisable sections */}
       {lm.filter((l) => l.kind === "straight").map((l) => (
         <Html key={l.name} position={[l.x, 14, l.z]} center zIndexRange={[4, 0]}>
-          <div className="label !text-[10px] whitespace-nowrap px-2" style={{ color: "#e8eaed", background: "rgba(0,0,0,.55)" }}>{l.name}</div>
+          <div className="label !text-[10px] whitespace-nowrap px-2" style={{ color: "#fff4f1", background: "rgba(0,0,0,.55)" }}>{l.name}</div>
         </Html>
       ))}
       {cornerLabels.map((k) => (
         <Html key={k.n} position={[k.x, 3, k.z]} center zIndexRange={[3, 0]}>
-          <div className="text-[10px]" style={{ color: "#9aa3b2", textShadow: "0 0 4px #000" }}>T{k.n}</div>
+          <div className="text-[10px]" style={{ color: "#d3b5b9", textShadow: "0 0 4px #000" }}>T{k.n}</div>
         </Html>
       ))}
       {lm.filter((l) => l.kind === "corner").map((l) => (

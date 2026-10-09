@@ -18,7 +18,7 @@ class Boundary extends Component<{ children: ReactNode }, { err: string | null }
           <div>
             <div className="num text-3xl text-red uppercase">3D view unavailable</div>
             <div className="text-muted text-[12px] mt-2">WebGL could not start: {this.state.err}</div>
-            <div className="text-muted text-[12px]">All telemetry and strategy panels below keep working.</div>
+            <div className="text-muted text-[12px]">Telemetry and strategy remain available in the race console.</div>
           </div>
         </div>
       );
@@ -62,7 +62,9 @@ function useStandings(state: RaceState, live: ReturnType<typeof newLive> extends
   return rows;
 }
 
-export default function RaceView({ state, clock }: { state: RaceState; clock: RaceClock }) {
+interface Props { state: RaceState; clock: RaceClock; drawerOpen: boolean }
+
+export default function RaceView({ state, clock, drawerOpen }: Props) {
   const circuit = useMemo(() => getCircuit(state.circuit_id), [state.circuit_id]);
   const live = useRef(newLive());
   const [mode, setMode] = useState<CamMode>("cinematic");
@@ -72,6 +74,23 @@ export default function RaceView({ state, clock }: { state: RaceState; clock: Ra
   const rows = useStandings(state, live);
   const sel = state.cars.find((c) => c.id === selected) ?? primary;
   const rec = state.recommendation;
+
+  // transient toast for race-changing events (rain, safety car, pit stops)
+  const lastEvent = useRef(state.events.length ? state.events[state.events.length - 1].id : 0);
+  const [toast, setToast] = useState<{ id: number; msg: string; color: string } | null>(null);
+  useEffect(() => {
+    const newest = state.events.length ? state.events[state.events.length - 1].id : 0;
+    if (newest < lastEvent.current) lastEvent.current = 0;   // race was reset
+    const fresh = state.events.filter((e) => e.id > lastEvent.current);
+    if (!fresh.length) return;
+    lastEvent.current = newest;
+    const hit = [...fresh].reverse().find((e) => /^(RAIN_|SC_|PIT_STOP|FORCED_PIT)/.test(e.type));
+    if (!hit) return;
+    const color = hit.type.startsWith("RAIN") ? "#2f8bff" : hit.type.startsWith("SC") ? "#ffb020" : "#ff3b47";
+    setToast({ id: hit.id, msg: hit.message, color });
+    const t = window.setTimeout(() => setToast(null), 4000);
+    return () => window.clearTimeout(t);
+  }, [state.events]);
 
   // recommended pit window: first-stop laps of plans within 1.5 s of the best expected finish
   const window_ = useMemo(() => {
@@ -85,117 +104,124 @@ export default function RaceView({ state, clock }: { state: RaceState; clock: Ra
   const executed = state.laps.filter((l) => l.pitted).map((l) => l.lap);
   const proposed = rec ? rec.plan.map((p) => p.lap) : [];
   const done = state.status === "finished";
+  const faded = drawerOpen ? "opacity-0 pointer-events-none" : "opacity-100";
 
   return (
-    <section className="panel fade-in h-full">
-      <div className="panel-in flex flex-col">
-        <header className="panel-head">
-          <span className="tick" />
-          <span className="label text-ink">01 / {circuit.data.name} / live 3D race</span>
-          <span className="ml-auto flex gap-2">
-            <Chip color={state.conditions.weather === "DRY" ? "#8A93A3" : "#2F8BFF"}>{state.conditions.weather} {state.conditions.track_wetness.toFixed(2)}</Chip>
-            {state.conditions.safety_car && <Chip color="#FFB020">Safety car</Chip>}
-          </span>
-        </header>
+    <section className="relative flex-1 min-h-[480px] overflow-hidden" aria-label="Live 3D race">
+      <div className="absolute inset-0">
+        <Boundary>
+          <Scene3D circuit={circuit} state={state} clock={clock} live={live} mode={mode} resetKey={resetKey}
+            selectedId={selected} followId={selected} onSelect={setSelected} boxLabel={boxLabel} drawerOpen={drawerOpen} />
+        </Boundary>
+      </div>
+      {/* edge vignette blends the 3D world into the maroon environment */}
+      <div className="absolute inset-0 pointer-events-none"
+        style={{ background: "radial-gradient(ellipse at 50% 45%, rgba(42,10,16,0) 50%, rgba(42,10,16,.78) 100%), linear-gradient(180deg, rgba(28,7,11,.35), transparent 14%)" }} />
 
-        <div className="relative h-[640px] bg-bg overflow-hidden">
-          <Boundary>
-            <Scene3D circuit={circuit} state={state} clock={clock} live={live} mode={mode} resetKey={resetKey}
-              selectedId={selected} followId={selected} onSelect={setSelected} boxLabel={boxLabel} />
-          </Boundary>
+      {/* camera controls */}
+      <div className="absolute top-3 left-3 flex flex-wrap gap-1 z-10">
+        {(["cinematic", "top", "follow"] as CamMode[]).map((m) => (
+          <button key={m} className={`btn !px-3 !py-[3px] !text-[13px] ${mode === m ? "btn-primary" : ""}`} onClick={() => setMode(m)}>
+            {m === "cinematic" ? "3D view" : m === "top" ? "Top-down" : "Follow car"}
+          </button>
+        ))}
+        <button className="btn !px-3 !py-[3px] !text-[13px]" onClick={() => { setMode("cinematic"); setResetKey((k) => k + 1); }}>Reset camera</button>
+      </div>
 
-          {/* camera controls */}
-          <div className="absolute top-3 left-3 flex gap-1 z-10">
-            {(["cinematic", "top", "follow"] as CamMode[]).map((m) => (
-              <button key={m} className={`btn !px-3 !py-[3px] !text-[13px] ${mode === m ? "btn-primary" : ""}`} onClick={() => setMode(m)}>
-                {m === "cinematic" ? "3D view" : m === "top" ? "Top-down" : "Follow car"}
-              </button>
-            ))}
-            <button className="btn !px-3 !py-[3px] !text-[13px]" onClick={() => { setMode("cinematic"); setResetKey((k) => k + 1); }}>Reset camera</button>
-          </div>
-
-          {/* timing tower */}
-          <div className="absolute top-14 left-3 z-10 w-[188px] pointer-events-auto" style={{ background: "rgba(7,8,10,.72)", border: "1px solid #1f242d" }}>
-            <div className="px-2 py-1 label flex justify-between"><span>Live order</span><span>Lap {Math.min(state.total_laps, Math.max(1, rows.find((r) => r.primary)?.lapNo ?? 1))}/{state.total_laps}</span></div>
-            <div className="relative" style={{ height: rows.length * 27 }}>
-              {rows.map((r, i) => (
-                <button key={r.id} onClick={() => setSelected(r.id)}
-                  className="absolute left-0 right-0 h-[26px] flex items-center gap-2 px-2 text-left"
-                  style={{ top: i * 27, transition: "top 450ms cubic-bezier(.2,.8,.2,1)",
-                    background: r.id === selected ? "rgba(255,255,255,.10)" : r.primary ? "rgba(255,45,58,.16)" : "transparent",
-                    borderLeft: `3px solid ${r.color}` }}>
-                  <span className="num w-4 text-[15px]">{i + 1}</span>
-                  <span className={`num text-[15px] w-9 ${r.primary ? "text-red" : ""}`}>{r.code}</span>
-                  <span className="inline-block w-2 h-2 rounded-full" style={{ background: COMPOUND_COLOR[r.compound] }} />
-                  <span className="text-[10px] text-muted ml-auto">{r.gap}</span>
-                </button>
-              ))}
-            </div>
-            <div className="px-2 py-1 text-[9px] text-muted">Rival cars are simulated AI (rule-based) - not real drivers or data.</div>
-          </div>
-
-          {/* selected car telemetry */}
-          <div className="absolute bottom-16 left-3 z-10 w-[270px] p-3" style={{ background: "rgba(7,8,10,.78)", border: `1px solid ${sel.color}88` }}>
-            <div className="flex items-center gap-2">
-              <span className="w-2 h-6" style={{ background: sel.color }} />
-              <div>
-                <div className="num text-xl leading-none uppercase">{sel.code} <span className="text-muted text-sm">{sel.name}</span></div>
-                <div className="text-[10px] text-muted">{sel.is_primary ? "STRATEGY-CONTROLLED (optimizer)" : "Simulated competitor (rule-based AI)"}</div>
-              </div>
-              <span className="num text-3xl ml-auto">P{sel.position}</span>
-            </div>
-            <div className="grid grid-cols-3 gap-2 mt-2 text-[11px]">
-              <div><div className="label">Tyre</div><span style={{ color: COMPOUND_COLOR[sel.compound] }}>{sel.compound}</span> {pct(sel.tyre_wear)}</div>
-              <div><div className="label">Age</div>{sel.tyre_age} laps</div>
-              <div><div className="label">Fuel</div>{sel.fuel_kg.toFixed(1)} kg</div>
-              <div><div className="label">Last lap</div>{fmtLap(sel.last_lap_s)}</div>
-              <div><div className="label">Stops</div>{sel.pit_stops}</div>
-              <div><div className="label">Gap (lap {state.lap})</div>{sel.position === 1 ? "leader" : `+${sel.gap_to_leader_s.toFixed(1)}s`}</div>
-            </div>
-          </div>
-
-          {/* recommendation overlay */}
-          {rec && !done && (
-            <div className="absolute top-3 right-3 z-10 max-w-[300px] p-3 text-right"
-              style={{ background: "rgba(7,8,10,.78)", border: `1px solid ${rec.action === "BOX_THIS_LAP" ? "#FF2D3A" : "#22D37A"}` }}>
-              <div className="label">Optimizer recommendation</div>
-              <div className="num text-3xl uppercase leading-none" style={{ color: rec.action === "BOX_THIS_LAP" ? "#FF2D3A" : "#22D37A" }}>
-                {rec.action === "BOX_THIS_LAP" ? "Box this lap" : "Stay out"}
-              </div>
-              <div className="text-[11px] mt-1">
-                {rec.compound && <span style={{ color: COMPOUND_COLOR[rec.compound] }}>{rec.compound} </span>}
-                {window_ ? `window L${window_.from}${window_.to > window_.from ? `-L${window_.to}` : ""}` : "no stop planned"}
-              </div>
-              <div className="text-[10px] text-muted">advantage vs next best: {rec.time_advantage_s.toFixed(1)}s</div>
-              <div className="text-[10px] text-muted mt-1 leading-snug">Proposal only - executed when the simulation boxes the car.</div>
-            </div>
-          )}
-
-          {/* lap strip: proposed vs executed stops */}
-          <div className="absolute bottom-3 left-3 right-3 z-10 flex items-center gap-[2px]" style={{ background: "rgba(7,8,10,.6)", padding: "6px 8px", border: "1px solid #1f242d" }}>
-            <span className="label mr-2 shrink-0">Laps</span>
-            {Array.from({ length: state.total_laps }, (_, i) => {
-              const lap = i + 1;
-              const inWin = window_ && lap >= window_.from && lap <= window_.to && lap > state.lap && !done;
-              const ex = executed.includes(lap);
-              const pr = proposed.includes(lap) && lap > state.lap;
-              return (
-                <div key={lap} className="flex-1 h-[18px] relative" title={`Lap ${lap}`}
-                  style={{ background: lap <= state.lap ? "#2a303b" : "#12151b",
-                    outline: inWin ? "1px solid #ffb020" : "none", boxShadow: lap === state.lap + 1 && !done ? "inset 0 -3px 0 #fff" : "none" }}>
-                  {ex && <span className="absolute inset-0 grid place-items-center text-[9px] font-semibold" style={{ background: "#22D37A", color: "#000" }} title="Executed stop">P</span>}
-                  {pr && !ex && <span className="absolute inset-0 grid place-items-center text-[9px] border border-dashed border-red text-red" title="Proposed stop">P?</span>}
-                </div>
-              );
-            })}
-            <span className="label ml-2 shrink-0 hidden md:block"><b className="text-green">P</b> executed <b className="text-red">P?</b> proposed <b className="text-amber">box</b> window</span>
-          </div>
+      {/* timing tower */}
+      <div className="absolute top-14 left-3 z-10 w-[188px]"
+        style={{ background: "rgba(36,9,15,.78)", border: "1px solid rgba(255,120,130,.3)", backdropFilter: "blur(6px)" }}>
+        <div className="px-2 py-1 label flex justify-between"><span>Live order</span><span>Lap {Math.min(state.total_laps, Math.max(1, rows.find((r) => r.primary)?.lapNo ?? 1))}/{state.total_laps}</span></div>
+        <div className="relative" style={{ height: rows.length * 27 }}>
+          {rows.map((r, i) => (
+            <button key={r.id} onClick={() => setSelected(r.id)}
+              className="absolute left-0 right-0 h-[26px] flex items-center gap-2 px-2 text-left"
+              style={{ top: i * 27, transition: "top 450ms cubic-bezier(.2,.8,.2,1)",
+                background: r.id === selected ? "rgba(255,255,255,.12)" : r.primary ? "rgba(255,59,71,.2)" : "transparent",
+                borderLeft: `3px solid ${r.color}` }}>
+              <span className="num w-4 text-[15px]">{i + 1}</span>
+              <span className={`num text-[15px] w-9 ${r.primary ? "text-red" : ""}`}>{r.code}</span>
+              <span className="inline-block w-2 h-2 rounded-full" style={{ background: COMPOUND_COLOR[r.compound] }} />
+              <span className="text-[10px] text-muted ml-auto">{r.gap}</span>
+            </button>
+          ))}
         </div>
+        <div className="px-2 py-1 text-[9px] text-muted">Rivals are simulated AI (rule-based), not real drivers or data.</div>
+      </div>
 
-        <div className="px-4 py-2 text-[10px] text-muted border-t border-line">
-          Circuit: {circuit.data.name} - geometry from {circuit.data.source.dataset} ({circuit.data.source.license.split(";")[0]}); start line, pit lane and sectors approximate.
-          Cars enlarged for visibility. Positions are interpolated from authoritative lap times.
+      {/* lap strip: proposed vs executed stops */}
+      <div className="absolute top-3 left-1/2 z-10 hidden lg:flex items-center gap-[2px] w-[min(520px,32vw)]"
+        style={{ background: "rgba(36,9,15,.7)", padding: "6px 8px", border: "1px solid rgba(255,120,130,.3)", backdropFilter: "blur(6px)", transform: "translateX(-40%)" }}>
+        {Array.from({ length: state.total_laps }, (_, i) => {
+          const lap = i + 1;
+          const inWin = window_ && lap >= window_.from && lap <= window_.to && lap > state.lap && !done;
+          const ex = executed.includes(lap);
+          const pr = proposed.includes(lap) && lap > state.lap;
+          return (
+            <div key={lap} className="flex-1 h-[18px] relative" title={`Lap ${lap}`}
+              style={{ background: lap <= state.lap ? "#8a3a49" : "#3a141c",
+                outline: inWin ? "1px solid #ffb020" : "none", boxShadow: lap === state.lap + 1 && !done ? "inset 0 -3px 0 #fff" : "none" }}>
+              {ex && <span className="absolute inset-0 grid place-items-center text-[9px] font-semibold" style={{ background: "#2fe08a", color: "#000" }} title="Executed stop">P</span>}
+              {pr && !ex && <span className="absolute inset-0 grid place-items-center text-[9px] border border-dashed border-red text-red" title="Proposed stop">P?</span>}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* conditions + optimizer recommendation */}
+      <div className="absolute top-3 right-3 z-10 flex flex-col items-end gap-2 max-w-[300px] max-md:max-w-[180px]">
+        <div className="flex gap-2">
+          <Chip color={state.conditions.weather === "DRY" ? "#cfb0b4" : "#2f8bff"}>{state.conditions.weather} {state.conditions.track_wetness.toFixed(2)}</Chip>
+          {state.conditions.safety_car && <Chip color="#ffb020">Safety car</Chip>}
         </div>
+        {rec && !done && (
+          <div className="p-3 text-right w-full"
+            style={{ background: "rgba(36,9,15,.8)", backdropFilter: "blur(6px)", border: `1px solid ${rec.action === "BOX_THIS_LAP" ? "#ff3b47" : "#2fe08a"}` }}>
+            <div className="label">Optimizer recommendation</div>
+            <div className="num text-3xl uppercase leading-none" style={{ color: rec.action === "BOX_THIS_LAP" ? "#ff3b47" : "#2fe08a" }}>
+              {rec.action === "BOX_THIS_LAP" ? "Box this lap" : "Stay out"}
+            </div>
+            <div className="text-[11px] mt-1">
+              {rec.compound && <span style={{ color: COMPOUND_COLOR[rec.compound] }}>{rec.compound} </span>}
+              {window_ ? `window L${window_.from}${window_.to > window_.from ? `-L${window_.to}` : ""}` : "no stop planned"}
+            </div>
+            <div className="text-[10px] text-muted">advantage vs next best: {rec.time_advantage_s.toFixed(1)}s</div>
+            <div className="text-[10px] text-muted mt-1 leading-snug">Proposal only. It is executed when the simulation boxes the car.</div>
+          </div>
+        )}
+      </div>
+
+      {toast && (
+        <div key={toast.id} className="toast-in absolute top-16 left-1/2 z-20 px-5 py-2 num text-[18px] uppercase tracking-wide whitespace-nowrap"
+          style={{ background: "rgba(36,9,15,.92)", border: `1px solid ${toast.color}`, color: "#fff", boxShadow: `0 0 24px ${toast.color}66`, marginLeft: 40 }}>
+          <span className="inline-block w-2 h-2 rounded-full mr-3 pulse-dot" style={{ background: toast.color }} />{toast.msg}
+        </div>
+      )}
+
+      {/* selected car telemetry */}
+      <div className={`absolute bottom-4 left-3 z-10 w-[270px] p-3 transition-opacity duration-300 max-md:hidden ${faded}`}
+        style={{ background: "rgba(36,9,15,.8)", backdropFilter: "blur(6px)", border: `1px solid ${sel.color}88` }}>
+        <div className="flex items-center gap-2">
+          <span className="w-2 h-6" style={{ background: sel.color }} />
+          <div>
+            <div className="num text-xl leading-none uppercase">{sel.code} <span className="text-muted text-sm">{sel.name}</span></div>
+            <div className="text-[10px] text-muted">{sel.is_primary ? "STRATEGY-CONTROLLED (optimizer)" : "Simulated competitor (rule-based AI)"}</div>
+          </div>
+          <span className="num text-3xl ml-auto">P{sel.position}</span>
+        </div>
+        <div className="grid grid-cols-3 gap-2 mt-2 text-[11px]">
+          <div><div className="label">Tyre</div><span style={{ color: COMPOUND_COLOR[sel.compound] }}>{sel.compound}</span> {pct(sel.tyre_wear)}</div>
+          <div><div className="label">Age</div>{sel.tyre_age} laps</div>
+          <div><div className="label">Fuel</div>{sel.fuel_kg.toFixed(1)} kg</div>
+          <div><div className="label">Last lap</div>{fmtLap(sel.last_lap_s)}</div>
+          <div><div className="label">Stops</div>{sel.pit_stops}</div>
+          <div><div className="label">Gap (lap {state.lap})</div>{sel.position === 1 ? "leader" : `+${sel.gap_to_leader_s.toFixed(1)}s`}</div>
+        </div>
+      </div>
+
+      <div className={`absolute bottom-3 right-3 z-10 max-w-[320px] text-right text-[9px] text-muted leading-snug transition-opacity duration-300 max-md:hidden ${faded}`}>
+        {circuit.data.name}. Geometry: {circuit.data.source.dataset} ({circuit.data.source.license.split(";")[0]}); start line, pit lane and sectors approximate.
+        Cars enlarged. Positions interpolated from authoritative lap times.
       </div>
     </section>
   );

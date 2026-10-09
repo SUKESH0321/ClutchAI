@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Canvas } from "@react-three/fiber";
+import { useRef, useState } from "react";
+import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { PerformanceMonitor } from "@react-three/drei";
 import * as THREE from "three";
 import type { Circuit } from "../../lib/circuit";
@@ -22,6 +22,22 @@ interface Props {
   followId: string;
   onSelect: (id: string) => void;
   boxLabel: string;
+  drawerOpen: boolean;
+}
+
+/** Slides the rendered view up (a little when closed, more while the console is open). No resize, no geometry change. */
+function ViewShift({ open }: { open: boolean }) {
+  const camera = useThree((s) => s.camera) as THREE.PerspectiveCamera;
+  const size = useThree((s) => s.size);
+  const cur = useRef(0);
+  useFrame((_, dt) => {
+    const target = size.height * (open ? 0.22 : 0.07);
+    const prev = cur.current;
+    cur.current += (target - cur.current) * (1 - Math.exp(-6 * dt));
+    if (Math.abs(cur.current - prev) < 0.01 && camera.view?.enabled && Math.abs(cur.current - target) < 0.5) return; // settled
+    camera.setViewOffset(size.width, size.height, 0, cur.current, size.width, size.height);
+  });
+  return null;
 }
 
 export default function Scene3D(p: Props) {
@@ -38,10 +54,11 @@ export default function Scene3D(p: Props) {
       onCreated={({ gl, scene }) => {
         gl.toneMapping = THREE.ACESFilmicToneMapping;
         gl.toneMappingExposure = 1.05;
-        scene.background = new THREE.Color("#0a0e15");
-        scene.fog = new THREE.FogExp2("#0a0e15", 0.00007);
+        scene.background = new THREE.Color("#2a0a10");
+        scene.fog = new THREE.FogExp2("#2a0a10", 0.00019);
       }}
     >
+      <ViewShift open={p.drawerOpen} />
       <PerformanceMonitor onDecline={() => setDpr(1)} onIncline={() => !low && setDpr(1.5)} />
       <hemisphereLight args={["#a9c4ea", "#2b4a26", 1.15]} />
       <ambientLight intensity={0.45} />

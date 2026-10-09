@@ -4,14 +4,9 @@ import { useRaceState } from "./hooks/useRaceState";
 import type { RaceState } from "./types/race";
 import HeaderBar from "./components/HeaderBar";
 import RaceView from "./components/RaceView";
+import WheelButton from "./components/WheelButton";
+import ConsoleDrawer, { type TabId } from "./components/ConsoleDrawer";
 import { RaceClock } from "./lib/raceClock";
-import TelemetryPanel from "./components/TelemetryPanel";
-import StrategyPanel from "./components/StrategyPanel";
-import EventControls from "./components/EventControls";
-import EventLog from "./components/EventLog";
-import BenchmarkPanel from "./components/BenchmarkPanel";
-import StrategyTimeline from "./components/charts/StrategyTimeline";
-import { LapTimeChart, WearChart } from "./components/charts/RaceCharts";
 
 export default function App() {
   const { state, mode, online, apply } = useRaceState();
@@ -20,6 +15,8 @@ export default function App() {
   const clock = useMemo(() => new RaceClock(), []);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [open, setOpen] = useState(false);
+  const [tab, setTab] = useState<TabId>("telemetry");
 
   useEffect(() => {
     api.configs().then(setConfigs).catch(() => undefined);
@@ -41,6 +38,9 @@ export default function App() {
       .finally(() => setBusy(false));
   }, [apply]);
 
+  const toggle = useCallback(() => setOpen((o) => !o), []);
+  const close = useCallback(() => setOpen(false), []);
+
   if (!state) {
     return (
       <div className="min-h-screen grid place-items-center">
@@ -53,40 +53,23 @@ export default function App() {
     );
   }
 
+  const controls = { state, online, configs, config, setConfig, act, busy };
+  const rec = state.recommendation;
+  const badge = rec?.action === "BOX_THIS_LAP" && state.status !== "finished" && !open ? "BOX" : null;
+
   return (
-    <main className="max-w-[1680px] mx-auto p-3 md:p-5 space-y-4">
-      <HeaderBar state={state} mode={mode} online={online} configs={configs} config={config}
-        setConfig={setConfig} act={act} busy={busy} />
-      {error && <div className="text-red border border-red/60 px-3 py-2 text-[12px]">{error}</div>}
-
-      <div className="grid grid-cols-1 xl:grid-cols-12 gap-4">
-        <div className="xl:col-span-8"><RaceView state={state} clock={clock} /></div>
-        <div className="xl:col-span-4 space-y-4">
-          <TelemetryPanel state={state} />
+    <div className="h-screen min-h-[640px] flex flex-col overflow-hidden">
+      <HeaderBar {...controls} mode={mode} />
+      {error && (
+        <div role="alert" className="mx-4 mt-2 text-[12px] px-3 py-2 flex items-center gap-3"
+          style={{ background: "rgba(120,10,25,.55)", border: "1px solid #ff3b47" }}>
+          <span className="flex-1">{error}</span>
+          <button className="underline" onClick={() => setError(null)}>dismiss</button>
         </div>
-      </div>
-
-      <div className="grid grid-cols-1 xl:grid-cols-12 gap-4">
-        <div className="xl:col-span-5"><StrategyPanel state={state} /></div>
-        <div className="xl:col-span-7 space-y-4">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <WearChart state={state} />
-            <LapTimeChart state={state} />
-          </div>
-          <StrategyTimeline state={state} />
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 xl:grid-cols-12 gap-4">
-        <div className="xl:col-span-4"><EventControls state={state} act={act} busy={busy} error={null} /></div>
-        <div className="xl:col-span-8"><EventLog state={state} /></div>
-      </div>
-
-      <BenchmarkPanel />
-
-      <footer className="label text-center pb-6">
-        Synthetic fictional race model - parameters are illustrative, not calibrated to real motorsport data.
-      </footer>
-    </main>
+      )}
+      <RaceView state={state} clock={clock} drawerOpen={open} />
+      <WheelButton open={open} onClick={toggle} badge={badge} />
+      <ConsoleDrawer {...controls} open={open} onClose={close} tab={tab} setTab={setTab} error={error} />
+    </div>
   );
 }

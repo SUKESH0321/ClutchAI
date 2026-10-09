@@ -81,11 +81,11 @@ export default function BenchmarkPanel() {
               <div className="h-[200px]">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={hist} margin={{ top: 6, right: 8, left: 0, bottom: 0 }}>
-                    <XAxis dataKey="label" stroke="#5b6472" tick={{ fontSize: 10, fill: "#8a93a3" }} />
-                    <YAxis stroke="#5b6472" tick={{ fontSize: 10, fill: "#8a93a3" }} width={32} allowDecimals={false} />
-                    <Tooltip contentStyle={{ background: "#000", border: "1px solid #1f242d", fontSize: 11 }}
+                    <XAxis dataKey="label" stroke="#b08990" tick={{ fontSize: 10, fill: "#cfb0b4" }} />
+                    <YAxis stroke="#b08990" tick={{ fontSize: 10, fill: "#cfb0b4" }} width={32} allowDecimals={false} />
+                    <Tooltip contentStyle={{ background: "#000", border: "1px solid #6a2431", fontSize: 11 }}
                       formatter={(v: number) => [`${v} races`, "count"]} labelFormatter={(l) => `${l}s to +5s`} />
-                    <ReferenceLine x="0" stroke="#E8EAED" />
+                    <ReferenceLine x="0" stroke="#fff4f1" />
                     <Bar dataKey="n" isAnimationActive={false}>
                       {hist.map((b, i) => <Cell key={i} fill={b.from >= 0 ? "#22D37A" : "#FF2D3A"} />)}
                     </Bar>
