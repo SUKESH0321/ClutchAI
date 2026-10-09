@@ -1,0 +1,12 @@
+backend/.venv/
+__pycache__/
+.pytest_cache/
+node_modules/
+dist/
+*.pyc
+results/*
+!results/.gitkeep
+.env
+!results/latest.json
+!results/latest.csv
+.claude/

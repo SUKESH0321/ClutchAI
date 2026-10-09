@@ -1,0 +1,8 @@
+{
+  "name": "default",
+  "total_laps": 25,
+  "base_lap_s": 90.0,
+  "seed": 7,
+  "start_compound": "MEDIUM",
+  "random_events": true
+}

@@ -1,0 +1,9 @@
+{
+  "name": "demo_scripted",
+  "seed": 42,
+  "random_events": false,
+  "scripted_events": [
+    {"lap": 8, "type": "RAIN", "intensity": 0.8, "duration": 7},
+    {"lap": 14, "type": "SC", "duration": 3}
+  ]
+}
