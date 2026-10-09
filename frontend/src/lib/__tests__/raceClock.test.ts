@@ -85,3 +85,33 @@ describe("placeCar", () => {
     expect(p.total).toBeLessThan(0);
   });
 });
+
+import { speedProfileFor } from "../speedProfile";
+
+describe("speed profile", () => {
+  const prof = speedProfileFor(c);
+  it("keeps exact endpoints and is monotonic (lap boundaries stay authoritative)", () => {
+    expect(prof.warp(0, 1, 0)).toBeCloseTo(0, 6);
+    expect(prof.warp(0, 1, 1)).toBeCloseTo(1, 3);
+    expect(prof.warp(0, 0.7, 1)).toBeCloseTo(0.7, 3);
+    let prev = -1;
+    for (let u = 0; u <= 1.0001; u += 0.005) { const f = prof.warp(0, 1, u); expect(f).toBeGreaterThanOrEqual(prev); prev = f; }
+  });
+  it("is slower in the tightest corner than on the fastest straight, with a believable range", () => {
+    let lo = 1e9, hi = 0;
+    for (let i = 0; i < 400; i++) { const v = prof.speedAt(i / 400); lo = Math.min(lo, v); hi = Math.max(hi, v); }
+    expect(hi / lo).toBeGreaterThan(1.8);
+    expect(prof.peakOverMean).toBeLessThan(1.65);
+  });
+  it("cars still finish each lap exactly when the data says, and never move backwards", () => {
+    const o = placeOptsFor(c, 0.8, 5, 0, 8);
+    const L = laps(4, 92, [2]);
+    let prev = -1;
+    for (let t = 0.05; t < L[3].elapsed_s; t += 0.05) {
+      const total = placeCar(L, t, o).total;
+      expect(total).toBeGreaterThanOrEqual(prev - 1e-9);
+      prev = total;
+    }
+    expect(placeCar(L, L[1].elapsed_s + 0.001, o).lapNo).toBe(3);
+  });
+});

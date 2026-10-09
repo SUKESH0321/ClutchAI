@@ -25,28 +25,29 @@ export interface QualitySettings {
   fog: boolean;
   carShadows: boolean;
   skidDetail: boolean;
+  lod: number;                 // distance (m) beyond which cars switch to the low-poly model
 }
 
 export const QUALITY: Record<QualityLevel, QualitySettings> = {
   performance: {
     label: "Performance", dpr: 1, shadows: false, shadowMapSize: 1024, shadowDistance: 0, anisotropy: 2,
     terrainSegments: 48, trees: 140, crowd: 0, tyreWalls: 2, props: 0.35, spray: 0, rain: 700,
-    hdrBackground: true, reflections: false, fog: true, carShadows: false, skidDetail: false,
+    hdrBackground: true, reflections: false, fog: true, carShadows: false, skidDetail: false, lod: 60,
   },
   balanced: {
     label: "Balanced", dpr: 1.25, shadows: true, shadowMapSize: 2048, shadowDistance: 160, anisotropy: 4,
     terrainSegments: 96, trees: 320, crowd: 350, tyreWalls: 4, props: 0.65, spray: 160, rain: 1400,
-    hdrBackground: true, reflections: true, fog: true, carShadows: true, skidDetail: false,
+    hdrBackground: true, reflections: true, fog: true, carShadows: true, skidDetail: false, lod: 110,
   },
   high: {
     label: "High", dpr: 1.6, shadows: true, shadowMapSize: 4096, shadowDistance: 220, anisotropy: 8,
     terrainSegments: 160, trees: 650, crowd: 900, tyreWalls: 7, props: 1, spray: 360, rain: 2400,
-    hdrBackground: true, reflections: true, fog: true, carShadows: true, skidDetail: true,
+    hdrBackground: true, reflections: true, fog: true, carShadows: true, skidDetail: true, lod: 180,
   },
   ultra: {
     label: "Ultra", dpr: 2, shadows: true, shadowMapSize: 4096, shadowDistance: 300, anisotropy: 16,
     terrainSegments: 220, trees: 1100, crowd: 1800, tyreWalls: 10, props: 1, spray: 700, rain: 3600,
-    hdrBackground: true, reflections: true, fog: true, carShadows: true, skidDetail: true,
+    hdrBackground: true, reflections: true, fog: true, carShadows: true, skidDetail: true, lod: 280,
   },
 };
 

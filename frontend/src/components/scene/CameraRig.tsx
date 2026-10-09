@@ -71,6 +71,7 @@ export default function CameraRig({ circuit: c, mode, resetKey, followId, live }
   useFrame((_, dt) => {
     const ctl = controls.current;
     if (!ctl) return;
+    if (import.meta.env.DEV) { const w = window as unknown as { __controls?: unknown; __start?: unknown }; w.__controls = ctl; w.__start = c.pointAt(0); }
     if (mode === "corner") {
       const p = live.current.poses.get(followId);
       if (p && apexes.length) {
@@ -94,9 +95,13 @@ export default function CameraRig({ circuit: c, mode, resetKey, followId, live }
       const p = live.current.poses.get(followId);
       if (p) {
         const chase = mode === "chase";
-        const back = chase ? 9 : 19, up = chase ? 2.4 : 7;
-        const desired = new THREE.Vector3(p.x - p.tx * back, Math.max(1.5, up), -(p.y - p.ty * back));
-        const look = new THREE.Vector3(p.x + p.tx * (chase ? 40 : 28), chase ? 1.4 : 0.5, -(p.y + p.ty * (chase ? 40 : 28)));
+        const pk = live.current.poses.get(followId)?.place;
+        const stopped = pk?.kind === "pit" && pk.stopped;            // keep the camera clear of the pit crew while the car is serviced
+        const back = stopped ? 9 : chase ? 9 : 19, up = stopped ? 4.5 : chase ? 2.4 : 7;
+        const side = stopped ? 8 : 0;                                   // view the stop from the side, not through the rear jack
+        const desired = new THREE.Vector3(p.x - p.tx * back + p.ty * side, Math.max(1.5, up), -(p.y - p.ty * back) + p.tx * side);
+        const ahead = stopped ? 0 : chase ? 40 : 28;
+        const look = new THREE.Vector3(p.x + p.tx * ahead, stopped ? 0.8 : chase ? 1.4 : 0.5, -(p.y + p.ty * ahead));
         const k = 1 - Math.exp(-(chase ? 7 : 5) * dt);
         camera.position.lerp(desired, k);
         ctl.target.lerp(look, k);

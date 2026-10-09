@@ -16,7 +16,8 @@ unless noted. Nothing is ripped from a game, and the cars use fictional liveries
 | Old tyre (glTF) | https://polyhaven.com/a/old_tyre | CC0 | Poly Haven contributor | `environment/old_tyre/` | none |
 | Kenney Racing Kit (grandstands, pits, tents, trees, gantry, barriers, lights) | https://kenney.nl/assets/racing-kit | CC0 | Kenney | `environment/kenney-racing-kit/` | placed/scaled at runtime; palette lightly remapped |
 | Kenney Car Kit (race cars, wheels) | https://kenney.nl/assets/car-kit | CC0 | Kenney | `cars/` | team palette recoloured at runtime (canvas copy of colormap); wheels animated in code |
-| Kenney Blocky Characters | https://kenney.nl/assets/blocky-characters | CC0 | Kenney | `characters/` | downloaded; not yet used in the scene (see README limitations) |
+| Kenney Blocky Characters (pit crew) | https://kenney.nl/assets/blocky-characters | CC0 | Kenney | `characters/` | used unmodified; animations idle/walk/interact-right/holding-both/emote-yes |
+| **F1 car model** (user-supplied) | supplied by the project owner as `assets/f1/source/NEW F1 CAR 2026 NEW CAR.fbx` | **UNVERIFIED: author and licence unknown, must be confirmed before any public release** | unknown | `cars/f1/f1_hi.glb`, `cars/f1/f1_lo.glb` | converted FBX->GLB (FBX2glTF), decimated 1.6 M -> ~60 k / ~4.7 k triangles, axes/scale fixed, wheels split out, three materials (`scripts/f1car/`); livery colours applied at runtime; the Kenney cars remain the fallback and the safety car |
 | Silverstone centre-line | https://github.com/TUMFTM/racetrack-database | LGPL-3.0 (OSM-derived, ODbL) | TUM Institute of Automotive Technology | `data/raw/Silverstone.csv` (resampled by `scripts/build_circuit.py`) | resampled to 720 points; start line, pit lane, sectors approximate |
 | Barlow Condensed, JetBrains Mono (fonts) | Google Fonts | SIL OFL 1.1 | Jeremy Tribby; JetBrains | loaded from Google Fonts in `index.html` | none |
 

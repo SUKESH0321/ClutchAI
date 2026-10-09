@@ -294,7 +294,19 @@ walls, grandstands, pit garages, lamp posts, fences, marshal posts, trees and fi
 Weather is driven by the simulation's wetness: HDRI cross-fade, fog, darker/shinier asphalt with puddles, rain streaks and
 car spray. Visuals never change lap times, fuel, wear or benchmarks.
 
-* Cameras: 3D view, Top-down, Follow car, Low chase, Corner (trackside, picks the next corner), Overview (reset).
+* Cars: the supplied F1 model (optimised by `scripts/f1car`, hi/lo detail switched by camera distance) in fictional team colours with
+  centre stripe, number decals, wheel spin from real distance, steering from track curvature, pitch/roll, brake lights and compound-coloured wheel
+  rings. The Kenney cars are the safety car and the automatic fallback if the F1 model fails to load.
+* Motion: cars brake for corners and accelerate out (a curvature-based speed profile redistributes distance *within* each lap; lap boundaries, lap
+  times, gaps, fuel and wear are untouched), launch from the grid, decelerate into and accelerate out of the pit box. Playback is 12 s per lap at 1x
+  (speeds 0.25x to 16x).
+* Race moments tied to real state: five start lights with the clock held on the grid, a waving chequered flag + confetti when the leader finishes,
+  pit crew (two pooled crews of six) that walks out when a car enters the lane, works only while it is stationary in its box and cheers on release,
+  crowd on the grandstand seats that cheers at lights-out, safety car and the flag, rubber marks in the real braking zones that build with laps and
+  wash away in the wet.
+* Level of detail: cars (hi/lo model by distance), props and crowd culled by camera distance/height, per-preset counts of trees, crowd, tyre walls, rain and spray.
+* Cameras: 3D view, Top-down, Follow car, Low chase, Corner (trackside, picks the next corner), Overview (reset). Follow/chase pull back and to the
+  side while the followed car is being serviced.
 * Quality selector (top right of the view): performance / balanced (default) / high / ultra change DPR, shadow resolution,
   tree/tyre-wall/spray/rain counts, reflections and fog. `?quality=low` forces performance. `?cam=chase` opens in a camera mode.
 * If a model or texture fails to load the affected element is skipped or replaced with a simple primitive; the race still runs.
@@ -305,10 +317,10 @@ car spray. Visuals never change lap times, fuel, wear or benchmarks.
   position, pit lane, sector splits and corner numbering are approximations (see `data/README.md`). No elevation.
 * Rival cars are rule-based AI with no on-track interaction (no overtaking or blocking physics).
 * The optimizer searches at most two further stops; the safety-car pit discount is a multiplicative simplification.
-* Not done in the visual upgrade: pit-crew characters (models downloaded, not wired in), crowd on the grandstands, a
-  start-light countdown and chequered-flag effect, curvature-based braking/acceleration speed profile (cars follow the
-  authoritative lap times with smooth interpolation only), skid marks (no modeled cause), LOD levels. Cars are low-poly
-  Kenney models, not detailed F1 models. Screenshots were taken in headless Chrome with software GL (SwiftShader).
+* Visual limits: the crowd and pit crew are blocky low-poly figures; crew members do not carry wheels (they animate in place and the new
+  compound appears on the car when the backend's stop completes); the speed profile is a visual model (it is not the physics in `physics.py`);
+  rubber marks are decals in the braking zones, not simulated tyre contact. The F1 model's licence is unverified (see ASSET_CREDITS.md).
+  Screenshots were taken in headless Chrome with software GL (SwiftShader) so frame rate is unmeasured.
 * The 3D scene uses enlarged cars. **Frame rate was not measured**: the preview browser used for
   development throttles animation when its pane is hidden, so only functional behaviour was verified there.
   Tested on one Intel UHD integrated GPU in that preview only; not tested on other browsers or touch devices.

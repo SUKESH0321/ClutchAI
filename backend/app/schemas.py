@@ -203,7 +203,7 @@ class ResetRequest(BaseModel):
 
 
 class SpeedRequest(BaseModel):
-    speed: float = Field(..., ge=0.5, le=16)
+    speed: float = Field(..., ge=0.25, le=16)
 
 
 class EventRequest(BaseModel):

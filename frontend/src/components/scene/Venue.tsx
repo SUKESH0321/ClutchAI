@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useMemo, useRef } from "react";
+import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import type { Circuit } from "../../lib/circuit";
 import type { QualitySettings } from "../../lib/quality";
@@ -8,6 +9,22 @@ import { GlbInstances, GlbObject } from "./glb";
 import { makePbrMaterial, patchWet, usePbr, type WetUniform } from "./materials";
 import { poseMatrix } from "./trackGeometry";
 import { Safe } from "./Safe";
+import { StandCrowd } from "./Crowd";
+import type { LiveData } from "./live";
+
+/** Level of detail for small props: hidden when the camera is high above the circuit (they are sub-pixel from there). */
+function HideWhenHigh({ y, children }: { y: number; children: React.ReactNode }) {
+  const g = useRef<THREE.Group>(null);
+  useFrame(({ camera }) => { if (g.current) g.current.visible = camera.position.y < y; });
+  return <group ref={g}>{children}</group>;
+}
+/** Crowd LOD: a stand's spectators are only drawn when the camera is within `dist` metres of the stand. */
+function Near({ at, dist, children }: { at: THREE.Matrix4; dist: number; children: React.ReactNode }) {
+  const g = useRef<THREE.Group>(null);
+  const p = useMemo(() => new THREE.Vector3().setFromMatrixPosition(at), [at]);
+  useFrame(({ camera }) => { if (g.current) g.current.visible = camera.position.distanceTo(p) < dist; });
+  return <group ref={g}>{children}</group>;
+}
 
 function rng(seed: number) {
   let a = seed;
@@ -132,7 +149,7 @@ function AdBatch({ xf, tex }: { xf: THREE.Matrix4[]; tex: THREE.Texture }) {
   );
 }
 
-export function Scenery({ circuit: c, terrain, q }: { circuit: Circuit; terrain: Terrain; q: QualitySettings }) {
+export function Scenery({ circuit: c, terrain, q, live }: { circuit: Circuit; terrain: Terrain; q: QualitySettings; live: React.MutableRefObject<LiveData> }) {
   const { trees, small, stands, posts, fences, marshals } = useMemo(() => {
     const r = rng(1234);
     let minX = 1e9, maxX = -1e9, minZ = 1e9, maxZ = -1e9;
@@ -195,14 +212,17 @@ export function Scenery({ circuit: c, terrain, q }: { circuit: Circuit; terrain:
       <Safe name="trees"><GlbInstances url={KENNEY("treeLarge")} xf={trees} /></Safe>
       <Safe name="trees (small)"><GlbInstances url={KENNEY("treeSmall")} xf={small} /></Safe>
       {stands.map((s, i) => (
-        <Safe key={i} name="grandstand">
+        <group key={i}>
+        <Safe name="grandstand">
           <GlbObject url={KENNEY(s.model)} size={s.size} matrixAutoUpdate={false} matrix={s.m} />
         </Safe>
+        {q.crowd > 0 && <Near at={s.m} dist={q.lod * 4.5}><Safe name="crowd"><StandCrowd stand={s} count={Math.round(q.crowd / stands.length)} live={live} /></Safe></Near>}
+        </group>
       ))}
-      <Safe name="lamp posts"><GlbInstances url={KENNEY("lightPostLarge")} xf={posts} scale={[15, 15, 15]} /></Safe>
-      <Safe name="fences"><GlbInstances url={KENNEY("fenceStraight")} xf={fences} scale={[6, 4, 6]} shadow={false} /></Safe>
-      <Safe name="ad boards"><AdBoards circuit={c} q={q} /></Safe>
-      <Safe name="marshal posts"><GlbInstances url={KENNEY("tentClosed")} xf={marshals} scale={[4, 4, 4]} /></Safe>
+      <HideWhenHigh y={q.lod * 5}><Safe name="lamp posts"><GlbInstances url={KENNEY("lightPostLarge")} xf={posts} scale={[15, 15, 15]} /></Safe></HideWhenHigh>
+      <HideWhenHigh y={q.lod * 5}><Safe name="fences"><GlbInstances url={KENNEY("fenceStraight")} xf={fences} scale={[6, 4, 6]} shadow={false} /></Safe></HideWhenHigh>
+      <HideWhenHigh y={q.lod * 5}><Safe name="ad boards"><AdBoards circuit={c} q={q} /></Safe></HideWhenHigh>
+      <HideWhenHigh y={q.lod * 5}><Safe name="marshal posts"><GlbInstances url={KENNEY("tentClosed")} xf={marshals} scale={[4, 4, 4]} /></Safe></HideWhenHigh>
     </>
   );
 }

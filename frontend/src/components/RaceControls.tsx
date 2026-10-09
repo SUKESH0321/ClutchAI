@@ -11,7 +11,7 @@ export interface ControlProps {
   busy: boolean;
 }
 
-const SPEEDS = [0.5, 1, 2, 4, 8, 16];
+const SPEEDS = [0.25, 0.5, 1, 2, 4, 8, 16];
 
 /** Start/pause/resume/step/finish/reset + config + speed. Single implementation, used by the header
  *  and the console's events tab so both always share the same handlers and state. */

@@ -5,6 +5,8 @@ import { RaceClock } from "../lib/raceClock";
 import { COMPOUND_COLOR } from "../lib/compounds";
 import { fmtLap, pct } from "../lib/format";
 import Scene3D from "./scene/Scene3D";
+import LoadingOverlay from "./scene/LoadingOverlay";
+import StartLightsHud from "./scene/StartLightsHud";
 import { newLive, type CamMode } from "./scene/live";
 import { Chip } from "./ui/Panel";
 import { setQuality, useQuality, type QualityLevel } from "../lib/quality";
@@ -119,6 +121,9 @@ export default function RaceView({ state, clock, drawerOpen }: Props) {
       {/* edge vignette blends the 3D world into the maroon environment */}
       <div className="absolute inset-0 pointer-events-none"
         style={{ background: "radial-gradient(ellipse at 50% 45%, rgba(42,10,16,0) 50%, rgba(42,10,16,.78) 100%), linear-gradient(180deg, rgba(28,7,11,.35), transparent 14%)" }} />
+
+      <LoadingOverlay />
+      <StartLightsHud live={live} />
 
       {/* camera controls */}
       <div className="absolute top-3 left-3 flex flex-wrap gap-1 z-10">

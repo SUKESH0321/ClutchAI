@@ -46,7 +46,7 @@ func update(s: Dictionary) -> void:
 	_t0 = _ms()
 	var running: bool = s.get("status") == "running"
 	_smooth = not running
-	_dur = 3000.0 / float(s.get("speed", 1.0)) if running else 1400.0
+	_dur = 12000.0 / float(s.get("speed", 1.0)) if running else 1400.0
 
 
 ## Latest race time for which every car's position is fully known.

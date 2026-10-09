@@ -15,7 +15,7 @@ from .physics import weather_label
 from .simulation import RaceEngine
 from .strategy import AdaptivePolicy, CompetitorPolicy, FixedStintBaseline
 
-SECONDS_PER_LAP = 3.0
+SECONDS_PER_LAP = 12.0
 
 # Simulated rival cars (fictional teams). pace = constant lap-time offset in seconds vs. the
 # primary car's pace. Strategies are fixed by the rule-based CompetitorPolicy.

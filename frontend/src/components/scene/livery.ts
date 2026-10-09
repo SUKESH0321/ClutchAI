@@ -1,18 +1,18 @@
 import * as THREE from "three";
 
 /** Fictional team liveries. Cars are fictional; no real team or driver is represented. */
-export interface Livery { primary: string; secondary: string; number: number; model: "race" | "race-future" }
+export interface Livery { primary: string; secondary: string; number: number; model: "f1" | "race" | "race-future" }
 
 const SECONDARY = ["#1d1f26", "#f1f1ee", "#2a2f3a", "#e8e3da", "#16181d", "#d9dde3", "#222630", "#f4efe6"];
 const NUMBERS = [7, 12, 23, 33, 48, 55, 71, 88];
 
 export function liveryFor(index: number, primaryColor: string, isPrimary: boolean): Livery {
-  if (isPrimary) return { primary: primaryColor, secondary: "#14161b", number: 1, model: "race" };
+  if (isPrimary) return { primary: primaryColor, secondary: "#14161b", number: 1, model: "f1" };
   return {
     primary: primaryColor,
     secondary: SECONDARY[index % SECONDARY.length],
     number: NUMBERS[index % NUMBERS.length],
-    model: index % 2 === 0 ? "race-future" : "race",
+    model: "f1",
   };
 }
 

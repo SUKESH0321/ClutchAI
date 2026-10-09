@@ -30,7 +30,7 @@ export default function Environment({ circuit: c, live, reco, boxLabel, q }: Pro
       <Safe name="terrain"><Ground terrain={terrain} q={q} wet={wet} /></Safe>
       <Safe name="circuit"><Track circuit={c} geo={geo} live={live} q={q} wet={wet} reco={reco} boxLabel={boxLabel} /></Safe>
       <Safe name="pit complex"><PitComplex circuit={c} /></Safe>
-      <Safe name="scenery"><Scenery circuit={c} terrain={terrain} q={q} /></Safe>
+      <Safe name="scenery"><Scenery circuit={c} terrain={terrain} q={q} live={live} /></Safe>
     </group>
   );
 }

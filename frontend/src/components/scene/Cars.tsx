@@ -65,13 +65,17 @@ export default function Cars({ circuit: c, state, clock, live, selectedId, onSel
     const m = new Map<string, ReturnType<typeof placeOptsFor>>();
     cars.forEach((car, i) => m.set(car.id, placeOptsFor(c, state.pit_service_ratio, car.grid_slot, i, cars.length)));
     m.set("__ghost", placeOptsFor(c, state.pit_service_ratio, 5, 0, cars.length));
+    live.current.boxes.clear();
+    cars.forEach((car) => { const o = m.get(car.id)!; live.current.boxes.set(car.id, c.pitAt(Math.max(1, o.laneIn - o.boxBeforeM))); });
     return m;
   }, [c, cars.length, state.pit_service_ratio]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useFrame(({ clock: three }, dtWall) => {
     const s = stateRef.current;
     const L = live.current;
-    const t = clock.now();
+    const dbg = import.meta.env.DEV ? (window as unknown as { __hold?: boolean; __live?: unknown }) : null;
+    if (dbg) dbg.__live = L;                                   // dev-only: lets the test scripts read/freeze the visual clock
+    const t = dbg?.__hold ? L.raceT : clock.now();
     const dtRace = t - L.raceT;
     L.raceT = t;
     let leader = -Infinity;
@@ -132,6 +136,8 @@ export default function Cars({ circuit: c, state, clock, live, selectedId, onSel
       });
     }
     L.leaderTotal = leader;
+    L.totalLaps = s.total_laps;
+    L.startLights = clock.lights();
 
     // weather and safety-car state of the lap currently on screen; wetness eases toward its target
     const prim = s.cars.find((q0) => q0.is_primary);
@@ -196,7 +202,10 @@ export default function Cars({ circuit: c, state, clock, live, selectedId, onSel
         const props = { livery: lv, label: car.code, primary: car.is_primary, q, accent: car.color, onClick: () => onSelect(car.id) };
         return (
           <Safe key={car.id} name={`car ${car.code}`}
-            fallback={<FallbackRig ref={(r) => { rigs.current[car.id] = r; }} color={car.color} />}>
+            fallback={
+              <Safe name={`car ${car.code} (fallback model)`} fallback={<FallbackRig ref={(r) => { rigs.current[car.id] = r; }} color={car.color} />}>
+                <CarRig ref={(r) => { rigs.current[car.id] = r; }} {...props} livery={{ ...lv, model: "race" }} />
+              </Safe>}>
             <CarRig ref={(r) => { rigs.current[car.id] = r; }} {...props} />
           </Safe>
         );
