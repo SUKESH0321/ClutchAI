@@ -7,6 +7,64 @@ Everything runs locally: no paid services, API keys, or cloud models.
 > The race model is synthetic and illustrative. Its parameters are not calibrated to real motorsport data, and
 > the rival cars are simulated AI, not real drivers or real data.
 
+## Quick start: download and run (Windows)
+
+You need three free tools. Everything else is installed for you.
+
+| Tool | Why | Get it |
+|---|---|---|
+| **Git** | download the project | https://git-scm.com/download/win |
+| **Node.js 18+** | the browser app | https://nodejs.org |
+| **uv** | installs Python 3.12 and the backend packages | https://docs.astral.sh/uv/getting-started/installation/ |
+| **Godot 4.6** (optional) | the native 3D game | https://godotengine.org/download |
+
+**1. Download and set up** (once):
+
+```powershell
+git clone https://github.com/SUKESH0321/ClutchAI.git
+cd ClutchAI
+powershell -ExecutionPolicy Bypass -File run.ps1 setup
+```
+
+**2. Start the AI / race engine** (leave this terminal open):
+
+```powershell
+powershell -ExecutionPolicy Bypass -File run.ps1 backend
+```
+
+This is the Python backend: it simulates the race and runs the strategy optimizer. Nothing works without it.
+
+**3. Open a second terminal in the same folder and pick a front end:**
+
+```powershell
+powershell -ExecutionPolicy Bypass -File run.ps1 web      # browser app: open http://localhost:5173
+powershell -ExecutionPolicy Bypass -File run.ps1 godot    # Godot 3D game (needs Godot 4.6, see below)
+```
+
+**4. Play:** press **Start**. Click the tyre button at the bottom (or press `C`) for the race console. In
+**Events & controls** you can trigger rain or a safety car and watch the optimizer replan and box the car.
+
+**Godot notes.** `run.ps1 godot` looks for Godot in your Downloads, Desktop and `Develop` folders. If it is
+elsewhere: `run.ps1 godot -Godot "C:\path\to\Godot_v4.6.x_win64.exe"`, or open `godot\project.godot` in the Godot
+editor and press **F5**. Godot is a single `.exe`, there is nothing to install.
+
+**Run the AI benchmark yourself** (100 paired races, about 30 seconds):
+
+```powershell
+cd backend
+.\.venv\Scripts\python.exe -m app.evaluation --trials 100 --seed-start 10000 --out ..\results
+```
+
+**Check everything works:** `powershell -ExecutionPolicy Bypass -File run.ps1 test` (backend, web and Godot tests).
+
+**Troubleshooting**
+* *Blank page or "Connecting to the strategy backend"*: the backend (step 2) is not running.
+* *`run.ps1 cannot be loaded`*: use the `-ExecutionPolicy Bypass` form shown above.
+* *Port 8000 or 5173 already in use*: close the old terminal, or the previous run, and start again.
+* macOS / Linux: the code is cross-platform but only Windows was tested. Run the commands in `run.ps1` by hand
+  (`uv venv --python 3.12 backend/.venv`, `uv pip install -r backend/requirements.txt`, `npm install` in `frontend/`,
+  then `python -m uvicorn app.main:app --port 8000` in `backend/` and `npm run dev` in `frontend/`).
+
 ## What it does
 
 * Lap-by-lap physics: fuel burn and fuel-mass lap-time effect, tyre wear (Soft / Medium / Hard / Wet), weather
