@@ -65,9 +65,9 @@ export default function Scene3D(p: Props) {
     >
       <ViewShift open={p.drawerOpen} />
       <PerformanceMonitor onDecline={() => setDpr((d) => Math.max(1, d - 0.4))} onIncline={() => setDpr(q.dpr)} />
-      <Environment circuit={c} live={p.live} reco={p.state.recommendation} boxLabel={p.boxLabel} q={q} />
-      <Cars circuit={c} state={p.state} clock={p.clock} live={p.live} selectedId={p.selectedId} onSelect={p.onSelect} q={q} />
-      <Safe name="pit crew"><PitCrew circuit={c} live={p.live} /></Safe>
+      <Environment key={c.data.id} circuit={c} live={p.live} reco={p.state.recommendation} boxLabel={p.boxLabel} q={q} />
+      <Cars key={c.data.id} circuit={c} state={p.state} clock={p.clock} live={p.live} selectedId={p.selectedId} onSelect={p.onSelect} q={q} />
+      <Safe name="pit crew"><PitCrew key={c.data.id} circuit={c} live={p.live} /></Safe>
       <Rain live={p.live} q={q} />
       <CameraRig circuit={c} mode={p.mode} resetKey={p.resetKey} followId={p.followId} live={p.live} />
     </Canvas>

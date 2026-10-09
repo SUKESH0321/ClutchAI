@@ -22,3 +22,5 @@ data/shots/
 
 # user-supplied source models (large, licence to be confirmed by the owner); the optimised GLBs are what the app uses
 assets/f1/source/
+!results/latest_*.json
+!results/latest_*.csv

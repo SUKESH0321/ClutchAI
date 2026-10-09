@@ -11,6 +11,7 @@ signal camera_mode_changed(mode: int)
 signal selection_changed(car_id: String)
 
 var circuit: Circuit
+var circuit_id: String = "silverstone"
 var world: World
 var clock := RaceClock.new()
 var state: Dictionary = {}
@@ -70,7 +71,10 @@ var _no_adapt: bool = false
 
 
 func _ready() -> void:
-	circuit = Circuit.load_from("res://data/silverstone.json")
+	circuit_id = str(Backend.state.get("circuit_id", "silverstone"))
+	if not FileAccess.file_exists("res://data/%s.json" % circuit_id):
+		circuit_id = "silverstone"
+	circuit = Circuit.load_from("res://data/%s.json" % circuit_id)
 	world = World.new()
 	add_child(world)
 	world.build(circuit)
@@ -265,6 +269,11 @@ func _make_broadcast_spots() -> void:
 
 # ------------------------------------------------------------------ state from backend
 func _on_state(s: Dictionary) -> void:
+	# the backend owns the selected circuit: when it changes (selected in the web app), rebuild the whole scene for it
+	var cid := str(s.get("circuit_id", circuit_id))
+	if cid != circuit_id and FileAccess.file_exists("res://data/%s.json" % cid):
+		get_tree().reload_current_scene.call_deferred()
+		return
 	state = s
 	clock.update(s)
 	_bl_cache = RaceClock.baseline_laps(s)

@@ -110,17 +110,15 @@ body {
   /* ---------- floating wheel button ---------- */
   .wheel-wrap { position: fixed; left: 50%; bottom: 26px; z-index: 50; transform: translateX(-50%); }
   .wheel-btn {
-    position: relative; width: 84px; height: 84px; border-radius: 9999px; display: block;
+    position: relative; width: 118px; height: 118px; border-radius: 9999px; display: block; cursor: pointer;
     animation: wheelFloat 3.6s ease-in-out infinite;
     transition: transform 220ms cubic-bezier(0.2, 0.8, 0.2, 1), filter 220ms;
     filter: drop-shadow(0 12px 18px rgba(0, 0, 0, 0.6)) drop-shadow(0 0 14px rgba(255, 59, 71, 0.35));
   }
-  .wheel-btn:hover { transform: scale(1.1); filter: drop-shadow(0 14px 22px rgba(0, 0, 0, 0.7)) drop-shadow(0 0 26px rgba(255, 59, 71, 0.75)); }
+  .wheel-btn canvas { width: 100% !important; height: 100% !important; display: block; }
+  .wheel-btn:hover { transform: scale(1.03); filter: drop-shadow(0 14px 22px rgba(0, 0, 0, 0.7)) drop-shadow(0 0 26px rgba(255, 59, 71, 0.75)); }
   .wheel-btn:active { transform: scale(0.97); }
   .wheel-btn:focus-visible { outline: 2px solid #fff; outline-offset: 4px; }
-  .wheel-rim { transform-origin: 60px 60px; transition: transform 700ms cubic-bezier(0.2, 0.8, 0.2, 1); }
-  .wheel-btn:hover .wheel-rim { transform: rotate(72deg); }
-  .wheel-btn[aria-expanded="true"] .wheel-rim { transform: rotate(144deg); }
   .wheel-tip {
     position: absolute; bottom: calc(100% + 12px); left: 50%; transform: translate(-50%, 6px);
     white-space: nowrap; padding: 4px 12px; font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase;

@@ -50,9 +50,23 @@ export interface CarSummary {
   tyre_wear: number; tyre_age: number; fuel_kg: number; pit_stops: number; last_lap_s: number | null;
   position: number; gap_to_leader_s: number;
 }
+export interface TrackSummary {
+  id: string; name: string; country: string; length_m: number; base_lap_s: number; fuel_burn_kg_per_lap: number;
+  fuel_initial_kg: number; pit_transit_s: number; tyre_wear_factor: number; scaled: boolean;
+}
+export interface TrackSim {
+  est_lap_s: number; lap_time_factor: number; length_factor: number; wear_factor: number; pit_transit_factor: number;
+  mean_speed_ms: number; peak_over_mean_speed: number; cornering_load: number;
+}
+export interface TrackInfo {
+  id: string; name: string; country: string; location: string; description: string; length_m: number;
+  official_length_m: number | null; official_turns: number | null; corners_detected: number; clockwise: boolean;
+  base_lap_s: number; fuel_burn_kg_per_lap: number; pit_lane_length_m: number; pit_approximate: boolean; sectors_approximate: boolean; elevation_available: boolean;
+  source: { dataset: string; url: string; license: string }; limitations: string[]; sim: TrackSim;
+}
 export interface RaceState {
   version: number; status: RaceStatus; config_name: string; seed: number; lap: number; total_laps: number;
-  max_wear: number; fuel_reserve_kg: number; circuit_id: string; pit_service_ratio: number; cars: CarSummary[]; elapsed_s: number; speed: number; replan_count: number;
+  max_wear: number; fuel_reserve_kg: number; circuit_id: string; track: TrackSummary | null; pit_service_ratio: number; cars: CarSummary[]; elapsed_s: number; speed: number; replan_count: number;
   car: CarState; conditions: Conditions; laps: LapRecord[]; stints: Stint[];
   recommendation: Recommendation | null; events: RaceEvent[]; baseline: BaselineShadow | null;
 }
@@ -72,7 +86,7 @@ export interface BenchmarkSummary {
   baseline_invalid_plans: number; tyre_violations: number; baseline_tyre_violations: number;
   fuel_failures: number; mean_decision_ms: number; p95_decision_ms: number;
   by_category: Record<string, { n: number; mean_saved_s: number; win_rate: number; loss_rate: number }>;
-  runtime_s: number; created_at: string; config_name: string;
+  runtime_s: number; created_at: string; config_name: string; circuit_id?: string;
 }
 export interface BenchmarkResults { summary: BenchmarkSummary; trials: TrialResult[] }
 export interface BenchmarkStatus { state: "idle" | "running" | "done" | "error"; completed: number; total: number; error: string | null }

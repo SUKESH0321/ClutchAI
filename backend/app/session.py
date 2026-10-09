@@ -8,6 +8,7 @@ from dataclasses import asdict
 from pathlib import Path
 from typing import Optional
 
+from . import tracks
 from .config import RESULTS_DIR, load_config
 from .events import build_schedule, car_variant
 from .evaluation import export, run_benchmark
@@ -54,8 +55,8 @@ class RaceSession:
         self._build("demo", None, None)
 
     # ------------------------------------------------------------ construction
-    def _build(self, name: str, seed: Optional[int], total_laps: Optional[int]) -> None:
-        cfg = load_config(name, seed=seed, total_laps=total_laps)
+    def _build(self, name: str, seed: Optional[int], total_laps: Optional[int], circuit: Optional[str] = None) -> None:
+        cfg = load_config(name, seed=seed, total_laps=total_laps, circuit=circuit)
         sched = build_schedule(cfg)
         self.cfg, self.config_name = cfg, name
         self.policy = AdaptivePolicy(cfg)
@@ -90,9 +91,11 @@ class RaceSession:
             eng.start()
 
     # ------------------------------------------------------------ commands
-    async def reset(self, name: Optional[str], seed: Optional[int], total_laps: Optional[int]) -> None:
+    async def reset(self, name: Optional[str], seed: Optional[int], total_laps: Optional[int], circuit: Optional[str] = None) -> None:
         async with self.lock:
-            await asyncio.to_thread(self._build, name or self.config_name, seed, total_laps)
+            # a circuit change starts a completely fresh race: new engines, schedule, policy, baseline and rivals
+            circuit = circuit or (self.cfg.circuit if getattr(self, "cfg", None) is not None else None)
+            await asyncio.to_thread(self._build, name or self.config_name, seed, total_laps, circuit)
             self.version += 1
         await self.broadcast()
 
@@ -263,6 +266,7 @@ class RaceSession:
             "seed": cfg.seed, "lap": e.lap, "total_laps": n, "max_wear": cfg.max_wear, "fuel_reserve_kg": cfg.fuel.reserve_kg, "elapsed_s": e.elapsed_s,
             "speed": self.speed, "replan_count": self.policy.replan_count,
             "circuit_id": cfg.circuit,
+            "track": tracks.summary(cfg).model_dump(),
             "pit_service_ratio": cfg.pit.service_s / (cfg.pit.service_s + cfg.pit.transit_s),
             "cars": self._cars_state(),
             "car": {
@@ -292,7 +296,8 @@ class BenchmarkRunner:
     def __init__(self, out_dir: Path | str = RESULTS_DIR) -> None:
         self.out_dir = Path(out_dir)
         self.state, self.completed, self.total, self.error = "idle", 0, 0, None
-        self.results: Optional[dict] = None
+        self.results: Optional[dict] = None              # most recent run (any circuit)
+        self.by_circuit: dict[str, dict] = {}           # latest result per circuit: results are never mixed across circuits
         self._task: Optional[asyncio.Task] = None
         self.load_latest()
 
@@ -303,24 +308,36 @@ class BenchmarkRunner:
                 self.results = json.loads(p.read_text(encoding="utf-8"))
             except Exception:
                 self.results = None
+        for q in sorted(self.out_dir.glob("latest_*.json")):
+            try:
+                r = json.loads(q.read_text(encoding="utf-8"))
+                self.by_circuit[r["summary"].get("circuit_id") or "silverstone"] = r
+            except Exception:
+                pass
+        if self.results is not None:                    # results written before circuits existed were Silverstone runs
+            self.by_circuit.setdefault(self.results["summary"].get("circuit_id") or "silverstone", self.results)
+
+    def results_for(self, circuit: str) -> Optional[dict]:
+        return self.by_circuit.get(circuit)
 
     def status(self) -> dict:
         return {"state": self.state, "completed": self.completed, "total": self.total, "error": self.error}
 
-    def start(self, trials: int, seed_start: int, scenarios: Optional[int]) -> None:
+    def start(self, trials: int, seed_start: int, scenarios: Optional[int], circuit: Optional[str] = None) -> None:
         if self.state == "running":
             raise SessionError("a benchmark is already running")
         self.state, self.completed, self.total, self.error = "running", 0, trials, None
-        self._task = asyncio.create_task(self._run(trials, seed_start, scenarios))
+        self._task = asyncio.create_task(self._run(trials, seed_start, scenarios, circuit))
 
     def _progress(self, done: int, total: int) -> None:
         self.completed = done
 
-    async def _run(self, trials: int, seed_start: int, scenarios: Optional[int]) -> None:
+    async def _run(self, trials: int, seed_start: int, scenarios: Optional[int], circuit: Optional[str] = None) -> None:
         try:
             res = await asyncio.to_thread(run_benchmark, trials, seed_start, scenarios, "default",
-                                          self._progress)
+                                          circuit, self._progress)
             await asyncio.to_thread(export, res, self.out_dir)
             self.results, self.state = res, "done"
+            self.by_circuit[res["summary"].get("circuit_id") or "silverstone"] = res
         except Exception as exc:
             self.state, self.error = "error", f"{type(exc).__name__}: {exc}"

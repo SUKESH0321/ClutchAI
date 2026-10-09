@@ -5,7 +5,7 @@ import json
 from pathlib import Path
 from typing import Literal, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 Compound = Literal["SOFT", "MEDIUM", "HARD", "WET"]
 DRY_COMPOUNDS: tuple[str, ...] = ("SOFT", "MEDIUM", "HARD")
@@ -115,6 +115,8 @@ class RaceConfig(BaseModel):
     seed: int = 7
     start_compound: Compound = "MEDIUM"
     circuit: str = "silverstone"
+    track_scaling: bool = True          # derive base lap, fuel and tyre-wear inputs from the circuit geometry (see tracks.py)
+    track_applied: bool = False         # set once the circuit scaling has been applied, so it can never be applied twice
     fuel: FuelCfg = Field(default_factory=FuelCfg)
     tyres: dict[str, TyreCfg] = Field(default_factory=_default_tyres)
     max_wear: float = 0.80
@@ -134,6 +136,14 @@ class RaceConfig(BaseModel):
     scripted_events: list[ScriptedEvent] = Field(default_factory=list)
     optimizer: OptimizerCfg = Field(default_factory=OptimizerCfg)
     baseline: BaselineCfg = Field(default_factory=BaselineCfg)
+
+    @model_validator(mode="after")
+    def _apply_track(self) -> "RaceConfig":
+        if self.track_scaling and not self.track_applied:
+            from . import tracks          # local import: tracks reads circuit files and has no dependency on this module
+            tracks.apply_to_config(self)
+            self.track_applied = True
+        return self
 
 
 def list_configs() -> list[str]:

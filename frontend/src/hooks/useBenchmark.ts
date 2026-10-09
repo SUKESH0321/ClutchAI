@@ -2,14 +2,16 @@ import { useCallback, useEffect, useState } from "react";
 import { api } from "../services/api";
 import type { BenchmarkResults, BenchmarkStatus } from "../types/race";
 
-export function useBenchmark() {
+export function useBenchmark(circuit?: string) {
   const [results, setResults] = useState<BenchmarkResults | null>(null);
   const [status, setStatus] = useState<BenchmarkStatus>({ state: "idle", completed: 0, total: 0, error: null });
   const [error, setError] = useState<string | null>(null);
 
+  // results are per circuit: switching circuit drops the old circuit's numbers and loads that circuit's own (or none)
   const loadResults = useCallback(() => {
-    api.evalResults().then(setResults).catch(() => setResults(null));
-  }, []);
+    setResults(null);
+    api.evalResults(circuit).then(setResults).catch(() => setResults(null));
+  }, [circuit]);
 
   useEffect(() => {
     loadResults();

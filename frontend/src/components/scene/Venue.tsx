@@ -10,6 +10,7 @@ import { makePbrMaterial, patchWet, usePbr, type WetUniform } from "./materials"
 import { poseMatrix } from "./trackGeometry";
 import { Safe } from "./Safe";
 import { StandCrowd } from "./Crowd";
+import Vegetation from "./Vegetation";
 import type { LiveData } from "./live";
 
 /** Level of detail for small props: hidden when the camera is high above the circuit (they are sub-pixel from there). */
@@ -150,20 +151,8 @@ function AdBatch({ xf, tex }: { xf: THREE.Matrix4[]; tex: THREE.Texture }) {
 }
 
 export function Scenery({ circuit: c, terrain, q, live }: { circuit: Circuit; terrain: Terrain; q: QualitySettings; live: React.MutableRefObject<LiveData> }) {
-  const { trees, small, stands, posts, fences, marshals } = useMemo(() => {
+  const { stands, posts, fences, marshals, exclusions } = useMemo(() => {
     const r = rng(1234);
-    let minX = 1e9, maxX = -1e9, minZ = 1e9, maxZ = -1e9;
-    for (let i = 0; i < c.n; i++) { minX = Math.min(minX, c.x[i]); maxX = Math.max(maxX, c.x[i]); minZ = Math.min(minZ, -c.y[i]); maxZ = Math.max(maxZ, -c.y[i]); }
-    const trees: THREE.Matrix4[] = [], small: THREE.Matrix4[] = [];
-    let tries = 0;
-    while (trees.length + small.length < q.trees && tries++ < q.trees * 25) {
-      const x = minX - 500 + r() * (maxX - minX + 1000), z = minZ - 500 + r() * (maxZ - minZ + 1000);
-      if (c.distanceToTrack(x, -z) < 80) continue;
-      const s = 5 + r() * 4.5, y = terrain.heightAt(x, z) - 0.1;
-      const m = new THREE.Matrix4().compose(new THREE.Vector3(x, y, z), new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), r() * 6.28),
-        r() < 0.65 ? new THREE.Vector3(s, s * (0.9 + r() * 0.5), s) : new THREE.Vector3(s * 1.2, s * 1.2, s * 1.2));
-      (r() < 0.65 ? trees : small).push(m);
-    }
     // grandstands: along the start straight and on the outside of the landmark corners
     const stands: { m: THREE.Matrix4; model: string; size: number }[] = [];
     const addStand = (idx: number, left: boolean, model: string, off: number, size: number) => {
@@ -204,13 +193,13 @@ export function Scenery({ circuit: c, terrain, q, live }: { circuit: Circuit; te
       const outsideLeft = k.turn === "right";
       marshals.push(poseMatrix(p, outsideLeft ? c.hl[i] + 29 : -(c.hr[i] + 29), 0, 0));
     }
-    return { trees, small, stands, posts, fences, marshals };
-  }, [c, terrain, q.trees, q.props]);
+    const exclusions = stands.map((st) => { const p = new THREE.Vector3().setFromMatrixPosition(st.m); return { x: p.x, z: p.z, r: st.size * 1.15 }; });
+    return { stands, posts, fences, marshals, exclusions };
+  }, [c, terrain, q.props]);
 
   return (
     <>
-      <Safe name="trees"><GlbInstances url={KENNEY("treeLarge")} xf={trees} /></Safe>
-      <Safe name="trees (small)"><GlbInstances url={KENNEY("treeSmall")} xf={small} /></Safe>
+      <Safe name="vegetation"><Vegetation circuit={c} terrain={terrain} q={q} live={live} exclusions={exclusions} /></Safe>
       {stands.map((s, i) => (
         <group key={i}>
         <Safe name="grandstand">

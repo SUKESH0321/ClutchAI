@@ -8,6 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import PlainTextResponse
 
 from . import schemas as S
+from . import tracks
 from .config import list_configs
 from .evaluation import trials_csv
 from .session import BenchmarkRunner, RaceSession, SessionError
@@ -47,11 +48,27 @@ def configs():
     return list_configs()
 
 
+@app.get("/api/circuits", response_model=list[tracks.TrackInfo])
+def circuits():
+    """Every selectable circuit with the simulation inputs derived from its geometry."""
+    return [tracks.track_info(c) for c in tracks.circuit_ids()]
+
+
+@app.get("/api/circuits/{circuit_id}", response_model=tracks.TrackInfo)
+def circuit(circuit_id: str):
+    try:
+        return tracks.track_info(circuit_id)
+    except FileNotFoundError as exc:
+        raise HTTPException(404, str(exc))
+
+
 @app.post("/api/race/reset", response_model=S.RaceState)
 async def reset(req: S.ResetRequest | None = None):
     req = req or S.ResetRequest()
     try:
-        await _sess().reset(req.config_name, req.seed, req.total_laps)
+        if req.circuit and req.circuit not in tracks.circuit_ids():
+            raise HTTPException(404, f"unknown circuit '{req.circuit}'")
+        await _sess().reset(req.config_name, req.seed, req.total_laps, req.circuit)
     except FileNotFoundError as exc:
         raise HTTPException(404, str(exc))
     return _sess().to_state()
@@ -112,7 +129,7 @@ async def recommendation(refresh: bool = Query(False)):
 async def eval_run(req: S.EvalRequest | None = None):
     req = req or S.EvalRequest()
     try:
-        app.state.bench.start(req.trials, req.seed_start, req.scenarios)
+        app.state.bench.start(req.trials, req.seed_start, req.scenarios, _sess().cfg.circuit)
     except SessionError as exc:
         raise HTTPException(409, str(exc))
     return app.state.bench.status()
@@ -124,17 +141,19 @@ def eval_status():
 
 
 @app.get("/api/evaluation/results", response_model=S.BenchmarkResults)
-def eval_results():
-    if app.state.bench.results is None:
-        raise HTTPException(404, "no benchmark results yet")
-    return app.state.bench.results
+def eval_results(circuit: str | None = Query(None, description="circuit id; default: the circuit currently selected")):
+    res = app.state.bench.results_for(circuit or _sess().cfg.circuit)
+    if res is None:
+        raise HTTPException(404, "no benchmark results yet for this circuit")
+    return res
 
 
 @app.get("/api/evaluation/results.csv", response_class=PlainTextResponse)
-def eval_csv():
-    if app.state.bench.results is None:
-        raise HTTPException(404, "no benchmark results yet")
-    return PlainTextResponse(trials_csv(app.state.bench.results), media_type="text/csv")
+def eval_csv(circuit: str | None = Query(None)):
+    res = app.state.bench.results_for(circuit or _sess().cfg.circuit)
+    if res is None:
+        raise HTTPException(404, "no benchmark results yet for this circuit")
+    return PlainTextResponse(trials_csv(res), media_type="text/csv")
 
 
 @app.websocket("/ws/race")

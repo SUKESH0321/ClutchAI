@@ -25,9 +25,13 @@ lap length about 5,891 m) and the travel direction is clockwise, as at the real 
 | Elevation | Not available, so the circuit is rendered flat. |
 | Scenery | Trees, grandstands, barriers and kerbs are procedural decoration, not mapped features. |
 
+## Circuits in this repo
+`raw/Silverstone.csv, Spa.csv, Monza.csv, Zandvoort.csv` are copies of `tracks/<name>.csv` from the same database (same license). `scripts/circuits_catalog.json` holds the
+display facts (published length and turn count, description, landmark names inferred from corner order); `scripts/build_circuit.py --all` writes `data/circuits/<id>.json`, which is the single
+source of truth for the backend (`backend/app/tracks.py`), the web app and (copied) the Godot client. Measured vs published length: Silverstone 5,887/5,891 m, Spa 7,000/7,004 m, Monza 5,790/5,793 m, Zandvoort 4,316/4,259 m.
+
 ## Adding another circuit
 
 1. Put another `Name.csv` from the same database (same columns) in `data/raw/`.
 2. `backend/.venv/Scripts/python.exe -I scripts/build_circuit.py data/raw/Spa.csv spa "Circuit de Spa-Francorchamps" "Belgium"`
-3. Register it in `frontend/src/lib/circuit.ts` (`CIRCUITS`) and set `"circuit": "spa"` in a config under `configs/`.
-   The landmark names in the build script are only defined for Silverstone; other circuits get numbered corners only.
+3. Add it to `scripts/circuits_catalog.json`, run `scripts/build_circuit.py <id>`, and copy the JSON to `godot/data/`. It appears in the track selector automatically.

@@ -9,7 +9,7 @@ import LoadingOverlay from "./scene/LoadingOverlay";
 import StartLightsHud from "./scene/StartLightsHud";
 import { newLive, type CamMode } from "./scene/live";
 import { Chip } from "./ui/Panel";
-import { setQuality, useQuality, type QualityLevel } from "../lib/quality";
+import { setQuality, setVegetation, useQuality, VEG_LEVELS, type QualityLevel, type VegLevel } from "../lib/quality";
 
 class Boundary extends Component<{ children: ReactNode }, { err: string | null }> {
   state = { err: null as string | null };
@@ -133,10 +133,23 @@ export default function RaceView({ state, clock, drawerOpen }: Props) {
           </button>
         ))}
         <button className="btn !px-3 !py-[3px] !text-[13px]" onClick={() => { setMode("cinematic"); setResetKey((k) => k + 1); }}>Overview</button>
-        <select aria-label="Graphics quality" className="btn !px-2 !py-[3px] !text-[13px] !fixed top-[70px] right-[118px] z-10" value={quality.level}
-          onChange={(e) => setQuality(e.target.value as QualityLevel)}>
-          {(["performance", "balanced", "high", "ultra"] as QualityLevel[]).map((l) => <option key={l} value={l}>{l}</option>)}
-        </select>
+        <div className="!fixed bottom-[58px] right-3 z-10 flex items-center gap-3">
+          <label className="flex items-center gap-1" title="Graphics preset: shadows, MSAA, reflections, effects">
+            <span className="label !text-[9px]">Graphics</span>
+            <select aria-label="Graphics quality" className="btn !px-2 !py-[3px] !text-[13px]" value={quality.level}
+              onChange={(e) => setQuality(e.target.value as QualityLevel)}>
+              {(["performance", "balanced", "high", "ultra"] as QualityLevel[]).map((l) => <option key={l} value={l}>{l}</option>)}
+            </select>
+          </label>
+          <label className="flex items-center gap-1" title="Trees and bushes around the circuit. Auto follows the graphics preset.">
+            <span className="label !text-[9px]">Vegetation</span>
+            <select aria-label="Vegetation density" className="btn !px-2 !py-[3px] !text-[13px]" value={quality.vegChoice}
+              onChange={(e) => setVegetation(e.target.value as VegLevel | "auto")}>
+              <option value="auto">auto ({quality.q.vegLevel})</option>
+              {VEG_LEVELS.map((l) => <option key={l} value={l}>{l}</option>)}
+            </select>
+          </label>
+        </div>
       </div>
 
       {/* timing tower */}

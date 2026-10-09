@@ -5,6 +5,8 @@ from typing import Literal, Optional
 
 from pydantic import BaseModel, Field
 
+from .tracks import TrackSummary
+
 Compound = Literal["SOFT", "MEDIUM", "HARD", "WET"]
 
 
@@ -175,12 +177,14 @@ class RaceState(BaseModel):
     version: int
     status: Literal["idle", "running", "paused", "finished"]
     config_name: str
+    circuit_id: Optional[str] = None
     seed: int
     lap: int
     total_laps: int
     max_wear: float
     fuel_reserve_kg: float
     circuit_id: str
+    track: Optional[TrackSummary] = None
     pit_service_ratio: float
     cars: list[CarSummary]
     elapsed_s: float
@@ -200,6 +204,7 @@ class ResetRequest(BaseModel):
     config_name: Optional[str] = None
     seed: Optional[int] = None
     total_laps: Optional[int] = Field(None, ge=5, le=80)
+    circuit: Optional[str] = None            # circuit id (see /api/circuits); omitted = keep the configured one
 
 
 class SpeedRequest(BaseModel):

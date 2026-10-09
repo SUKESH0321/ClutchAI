@@ -6,6 +6,24 @@ import { useSyncExternalStore } from "react";
  */
 export type QualityLevel = "performance" | "balanced" | "high" | "ultra";
 
+/** Vegetation density: separate from the graphics preset, so a weak GPU can keep a lush venue or a strong one drop it. */
+export type VegLevel = "low" | "medium" | "high" | "ultra";
+export interface VegSettings {
+  trees: number;        // tree instances placed around the circuit
+  bushes: number;       // bush / low-vegetation instances
+  hiRadius: number;     // metres from the camera within which the detailed tree models are drawn (beyond: 50-triangle stand-ins)
+  bushRadius: number;   // metres within which bushes are drawn
+  wind: boolean;        // vertex sway
+}
+export const VEGETATION: Record<VegLevel, VegSettings> = {
+  low:    { trees: 3500,  bushes: 2000,  hiRadius: 200, bushRadius: 180, wind: false },
+  medium: { trees: 11000, bushes: 7000,  hiRadius: 300, bushRadius: 280, wind: true },
+  high:   { trees: 24000, bushes: 14000, hiRadius: 440, bushRadius: 400, wind: true },
+  ultra:  { trees: 42000, bushes: 24000, hiRadius: 620, bushRadius: 560, wind: true },
+};
+export const VEG_LEVELS = Object.keys(VEGETATION) as VegLevel[];
+const PRESET_VEG: Record<QualityLevel, VegLevel> = { performance: "low", balanced: "medium", high: "high", ultra: "ultra" };
+
 export interface QualitySettings {
   label: string;
   dpr: number;                 // max device pixel ratio
@@ -26,9 +44,12 @@ export interface QualitySettings {
   carShadows: boolean;
   skidDetail: boolean;
   lod: number;                 // distance (m) beyond which cars switch to the low-poly model
+  vegLevel: VegLevel;          // resolved vegetation density (preset default unless overridden)
+  veg: VegSettings;
 }
 
-export const QUALITY: Record<QualityLevel, QualitySettings> = {
+type BaseQuality = Omit<QualitySettings, "vegLevel" | "veg">;
+const BASE: Record<QualityLevel, BaseQuality> = {
   performance: {
     label: "Performance", dpr: 1, shadows: false, shadowMapSize: 1024, shadowDistance: 0, anisotropy: 2,
     terrainSegments: 48, trees: 140, crowd: 0, tyreWalls: 2, props: 0.35, spray: 0, rain: 700,
@@ -51,20 +72,53 @@ export const QUALITY: Record<QualityLevel, QualitySettings> = {
   },
 };
 
+const resolved = new Map<string, QualitySettings>();
+function resolve(level: QualityLevel, veg: VegLevel | "auto"): QualitySettings {
+  const key = `${level}|${veg}`;
+  let r = resolved.get(key);
+  if (!r) {
+    const vl = veg === "auto" ? PRESET_VEG[level] : veg;
+    r = { ...BASE[level], vegLevel: vl, veg: VEGETATION[vl] };
+    resolved.set(key, r);
+  }
+  return r;
+}
+/** Settings for a preset (vegetation at the preset's own default). */
+export const QUALITY: Record<QualityLevel, QualitySettings> = {
+  performance: resolve("performance", "auto"), balanced: resolve("balanced", "auto"),
+  high: resolve("high", "auto"), ultra: resolve("ultra", "auto"),
+};
+
 const KEY = "pitstop.quality";
 const listeners = new Set<() => void>();
 let current: QualityLevel = (() => {
   try {
     const v = localStorage.getItem(KEY) as QualityLevel | null;
-    if (v && v in QUALITY) return v;
+    if (v && v in BASE) return v;
     const q = new URLSearchParams(window.location.search).get("quality");
     if (q === "low") return "performance";
-    if (q && q in QUALITY) return q as QualityLevel;
+    if (q && q in BASE) return q as QualityLevel;
   } catch {
     // storage unavailable: fall back to the default
   }
   return "balanced";
 })();
+
+const VKEY = "pitstop.vegetation";
+let vegChoice: VegLevel | "auto" = (() => {
+  try {
+    const v = new URLSearchParams(window.location.search).get("veg") ?? localStorage.getItem(VKEY);
+    if (v && (v in VEGETATION)) return v as VegLevel;
+  } catch {
+    // storage unavailable: automatic
+  }
+  return "auto";
+})();
+export function setVegetation(v: VegLevel | "auto"): void {
+  vegChoice = v;
+  try { localStorage.setItem(VKEY, v); } catch { /* ignore */ }
+  listeners.forEach((l) => l());
+}
 
 export function setQuality(level: QualityLevel): void {
   current = level;
@@ -76,10 +130,11 @@ export function getQualityLevel(): QualityLevel {
   return current;
 }
 
-export function useQuality(): { level: QualityLevel; q: QualitySettings } {
-  const level = useSyncExternalStore(
+export function useQuality(): { level: QualityLevel; vegChoice: VegLevel | "auto"; q: QualitySettings } {
+  const key = useSyncExternalStore(
     (cb) => { listeners.add(cb); return () => listeners.delete(cb); },
-    () => current,
+    () => `${current}|${vegChoice}`,
   );
-  return { level, q: QUALITY[level] };
+  const [level, veg] = key.split("|") as [QualityLevel, VegLevel | "auto"];
+  return { level, vegChoice: veg, q: resolve(level, veg) };
 }

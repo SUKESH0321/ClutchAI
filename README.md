@@ -311,6 +311,25 @@ car spray. Visuals never change lap times, fuel, wear or benchmarks.
   tree/tyre-wall/spray/rain counts, reflections and fog. `?quality=low` forces performance. `?cam=chase` opens in a camera mode.
 * If a model or texture fails to load the affected element is skipped or replaced with a simple primitive; the race still runs.
 
+## Circuits, vegetation and the wheel button
+* **Four circuits** (Silverstone, Spa-Francorchamps, Monza, Zandvoort): click **TRACK** in the header. Each has its own measured geometry from the TUM
+  racetrack-database (LGPL-3.0, OSM-derived), a preview drawn from that geometry, and its own simulation inputs. Switching during a race asks for
+  confirmation and resets the race (new engines, lap history, strategy, baseline, rivals); the 3D venue, camera, cars, pit lane and the Godot client follow.
+  The backend owns the selection (`state.circuit_id`, `POST /api/race/reset {"circuit": "spa"}`, `GET /api/circuits`).
+* **What is circuit-dependent** (`backend/app/tracks.py`, derived from geometry, nothing typed in per circuit): base lap time (curvature-limited speed profile,
+  calibrated so Silverstone keeps its 90 s), fuel burn and starting load (lap length), tyre wear (length x lateral load), pit-lane time loss (lane length vs mean
+  speed). The fuel/tyre/weather/safety-car *models* are unchanged. Lap times are relative model estimates, not real lap times.
+* **Not available / approximate:** elevation (every circuit is flat), surveyed pit lanes (a synthetic lane at the start straight on every circuit), official sector
+  splits (equal thirds), official turn numbering (corners are detected from curvature; published turn counts are shown for reference), start line (first dataset point).
+  Landmark names (La Source, Eau Rouge, Parabolica...) are inferred from the order of detected corners.
+* **Benchmarks are per circuit** (`results/latest_<circuit>.json`; `python -m app.evaluation --circuit spa`); the Analytics tab shows the selected circuit's own results only.
+* **Vegetation:** up to 42,000 instanced trees and 24,000 bushes (13 tree and 5 bush models from the CC0 Kenney Nature Kit) in forest clusters, with clearance from
+  the track edge/runoff/barriers, the pit lane, grandstands and open sight-line zones on the outside of corners. Draw calls are bounded by chunking (450 m) with
+  frustum culling and a distance LOD (detailed models near the camera, 20-60 triangle stand-ins beyond). The **Vegetation** selector (low / medium / high / ultra / auto)
+  is separate from **Graphics**.
+* **Wheel button:** a real 3D Formula-style wheel (slick tyre with red compound band, vented metal wheel face, red lock nut) in its own small WebGL canvas that ignores the pointer;
+  it floats, spins, scales on hover, and still opens/closes the console.
+
 ## Known limitations and unverified items
 
 * Circuit data: centerline and widths are real (TUM FTM database, OpenStreetMap-derived), but the start/finish
