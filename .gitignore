@@ -10,3 +10,12 @@ results/*
 !results/latest.json
 !results/latest.csv
 .claude/
+
+# Godot
+.godot/
+godot/.godot/
+*.tmp
+
+# downloaded asset archive and scratch screenshots (only docs/screenshots is kept)
+data/downloads/
+data/shots/

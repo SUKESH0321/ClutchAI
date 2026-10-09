@@ -188,6 +188,16 @@ cd backend;  .\.venv\Scripts\python.exe -m app.demo            # headless demo s
 5. Run the benchmark panel (100 trials takes about 25 s) or load the saved results.
 Backup: reset on `demo_scripted` (rain at lap 8 and a safety car at lap 14 are pre-scheduled) and just press Start.
 
+## Godot 3D client (optional)
+
+`godot/` is a native Godot 4.6 client for the same live race: CC0 Kenney car, tree, grandstand and pit
+models on the real Silverstone geometry, five camera modes (chase, trackside broadcast, top-down, orbit, hood),
+a rain shader, and the same maroon HUD with a race console. It talks to the existing backend over the same
+WebSocket and REST API, so the optimizer, physics and benchmark are unchanged. See [godot/README.md](godot/README.md)
+for how to run it, the controls, credits and `godot/check.ps1`.
+
+![Godot broadcast camera](docs/screenshots/godot-broadcast-live.png)
+
 ## Interface layout
 
 A deep maroon-red racing identity. The 3D circuit fills the whole window under a compact single-row race header

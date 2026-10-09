@@ -73,8 +73,11 @@ export default function Cars({ circuit: c, state, clock, live, selectedId, onSel
     const L = live.current;
     L.raceT = t;
     let leader = -Infinity;
+    // after the flag each car coasts to its own stopping point (winner furthest on) so they do not stack
+    const rank = new Map<string, number>();
+    [...s.cars].sort((a, b) => a.elapsed_s - b.elapsed_s).forEach((c, i) => rank.set(c.id, i));
     for (const car of s.cars) {
-      const o = opts.get(car.id)!;
+      const o = { ...opts.get(car.id)!, rollCap: 0.085 - 0.0085 * (rank.get(car.id) ?? 0) };
       const laps: LapPoint[] = car.laps;
       const place = placeCar(laps, t, o);
       const pose = poseOf(c, place);

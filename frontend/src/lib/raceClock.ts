@@ -25,6 +25,7 @@ export interface PlaceOpts {
   ratio: number;        // share of the pit loss spent stationary
   gridFrac: number;     // lap fraction behind the line on the starting grid
   boxBeforeM: number;   // distance before the line at which this car's pit box sits (m)
+  rollCap?: number;     // how far past the line (laps) this car coasts after the flag
 }
 
 export type Place =
@@ -45,7 +46,7 @@ export function placeCar(laps: LapPoint[], t: number, o: PlaceOpts): Place {
   if (idx >= laps.length) {
     // past the last known lap (e.g. after the flag): roll on slowly beyond the line, never teleport
     const last = laps[laps.length - 1];
-    const extra = Math.min(0.05, ((t - last.elapsed_s) / last.lap_time_s) * 0.5);
+    const extra = Math.min(o.rollCap ?? 0.05, ((t - last.elapsed_s) / last.lap_time_s) * 0.5);
     return { kind: "track", frac: extra, total: laps.length + extra, lapNo: laps.length };
   }
   const lap = laps[idx];
