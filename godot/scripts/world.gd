@@ -15,6 +15,12 @@ var pit_glow_mat: StandardMaterial3D
 var sc_glow_mat: StandardMaterial3D
 var _rng := RandomNumberGenerator.new()
 var _label_nodes: Array = []     # [Label3D, base pixel_size]
+var _corner_label_nodes: Array = []
+var _tree_nodes: Array = []
+var _prop_nodes: Array = []
+var _shadow_pref: bool = true
+var _applied_wet: float = -1.0
+var _label_k: float = -1.0
 
 
 func build(c: Circuit) -> void:
@@ -28,6 +34,9 @@ func build(c: Circuit) -> void:
 	_start_line()
 	_scenery()
 	_labels()
+	for ch in get_children():
+		if ch is MultiMeshInstance3D:
+			(_tree_nodes if str(ch.name).begins_with("trees_") else _prop_nodes).append(ch)
 
 
 # ------------------------------------------------------------------ environment
@@ -367,8 +376,12 @@ func _scenery() -> void:
 			large.append(Assets.instance_xf("treeLarge", xf, Vector3(s, s * (0.9 + _rng.randf() * 0.4), s)))
 		else:
 			small.append(Assets.instance_xf("treeSmall", xf, Vector3(s * 1.2, s * 1.2, s * 1.2)))
-	add_child(Assets.multimesh("treeLarge", large))
-	add_child(Assets.multimesh("treeSmall", small))
+	var tl := Assets.multimesh("treeLarge", large)
+	tl.name = "trees_large"
+	add_child(tl)
+	var ts := Assets.multimesh("treeSmall", small)
+	ts.name = "trees_small"
+	add_child(ts)
 
 	# grandstands
 	var stand := func(idx: int, side_left: bool, model: String, off: float) -> void:
@@ -451,17 +464,22 @@ func _labels() -> void:
 		lab2.position = p
 		add_child(lab2)
 		_label_nodes.append([lab2, lab2.pixel_size])
+		_corner_label_nodes.append(lab2)
 
 
 # ------------------------------------------------------------------ dynamic state
 func scale_labels(fov_deg: float) -> void:
 	var k := clampf(fov_deg / 45.0, 0.1, 1.5)
+	if absf(k - _label_k) < 0.004:
+		return
+	_label_k = k
 	for e in _label_nodes:
 		(e[0] as Label3D).pixel_size = float(e[1]) * k
 
 func set_wetness(w: float) -> void:
-	if road_mat == null:
+	if road_mat == null or absf(w - _applied_wet) < 0.002:
 		return
+	_applied_wet = w
 	var dry := Color.WHITE
 	var wet := Color(0.5, 0.52, 0.58)
 	road_mat.albedo_color = dry.lerp(wet, clampf(w * 1.4, 0.0, 1.0))
@@ -485,3 +503,32 @@ func set_pit_highlight(mode: int, t: float) -> void:
 			pit_glow_mat.albedo_color = Color(0.18, 0.88, 0.54, 0.5)
 		_:
 			pit_glow_mat.albedo_color.a = 0.0
+
+
+# ------------------------------------------------------------------ quality
+func apply_quality(P: Dictionary) -> void:
+	_shadow_pref = bool(P["shadows"])
+	sun.shadow_enabled = _shadow_pref
+	var splits := int(P["splits"])
+	sun.directional_shadow_mode = DirectionalLight3D.SHADOW_ORTHOGONAL if splits <= 1 else (DirectionalLight3D.SHADOW_PARALLEL_2_SPLITS if splits == 2 else DirectionalLight3D.SHADOW_PARALLEL_4_SPLITS)
+	sun.directional_shadow_max_distance = maxf(50.0, float(P["shadow_dist"]))
+	RenderingServer.directional_shadow_atlas_set_size(int(P["shadow_size"]), true)
+	env.glow_enabled = bool(P["glow"])
+	env.fog_enabled = bool(P["fog"])
+	var frac := float(P["trees"])
+	for t in _tree_nodes:
+		var mm := (t as MultiMeshInstance3D).multimesh
+		if mm != null:
+			mm.visible_instance_count = int(round(mm.instance_count * frac))
+		(t as MultiMeshInstance3D).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON if bool(P["props_shadows"]) else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	for p in _prop_nodes:
+		(p as MultiMeshInstance3D).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON if bool(P["props_shadows"]) else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	for l in _corner_label_nodes:
+		(l as Label3D).visible = bool(P["corner_labels"])
+
+
+## Shadows only matter near the cars: switch the sun's shadow pass off while the camera is far above the circuit.
+func update_shadow_for_camera(cam_height: float) -> void:
+	var want := _shadow_pref and cam_height < 420.0
+	if sun.shadow_enabled != want:
+		sun.shadow_enabled = want

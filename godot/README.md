@@ -88,3 +88,16 @@ Debug options after `--`: `--cam=chase|broadcast|top|orbit|hood`, `--console --t
   procedural. Sound is not implemented.
 * Verified here: scripts parse, placement and backend integration tests pass, and the scene renders on an
   NVIDIA RTX 3050 laptop GPU. Frame rate was not measured, and it was not tested on other GPUs or on macOS/Linux.
+
+
+## Cars, quality and frame rate
+* Racers use the supplied F1 model (`assets/f1`, built by `scripts/f1car`): a ~67k-triangle near model with spinning, steering wheels and brake
+  lights, and a ~5k-triangle far model (3 draw calls) swapped by camera distance. The paint shader recolours it per team (centre stripe in a
+  second colour). The safety car is still a Kenney car. The Kenney cars are also the fallback if the F1 files are missing.
+* **Q** cycles quality presets (performance / balanced / high / ultra: shadow splits and distance, shadow atlas, MSAA, glow, fog, tree count,
+  prop shadows, car LOD distance). The default is `balanced` on a discrete GPU and `performance` on an integrated one; if the frame rate stays well under
+  the display refresh the client steps down one preset by itself. Force one with `-- --quality=high`. A small label bottom right shows fps and preset.
+* Other savings: sun shadows are switched off while the camera is high above the circuit (orbit/top), the full-screen rain shader only draws in
+  the wet, per-frame work (baseline laps, label scaling, wetness/fog/sun updates) is cached or done only on change.
+* Measure it: `scripts/godot_probe.ps1` (renderer CPU+GPU ms, old commit vs working tree), `scripts/godot_compare.ps1`, `scripts/godot_bench.ps1`,
+  or `-- --bench=10 --novsync --quality=balanced`. Note: the Compatibility renderer ignores 3D render-scale, so presets (not resolution) are the lever.

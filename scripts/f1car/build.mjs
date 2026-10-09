@@ -97,7 +97,7 @@ const nScene = (N) => {
   return o;
 };
 
-function build(budget) {
+function build(budget, merged = false) {
   const doc = new Document();
   const buf = doc.createBuffer();
   const mat = (n, c, m, r) => doc.createMaterial(n).setBaseColorFactor(c).setMetallicFactor(m).setRoughnessFactor(r);
@@ -113,6 +113,7 @@ function build(budget) {
     return doc.createMesh(name).addPrimitive(prim);
   };
   const scene = doc.createScene("car");
+  doc.getRoot().setDefaultScene(scene);
   const root = doc.createNode("car");
   scene.addChild(root);
   const body = doc.createNode("body");
@@ -121,6 +122,18 @@ function build(budget) {
   const rp = processGroup(cls.paint, budget.paint);
   stats.paint = rp.I.length / 3;
   body.addChild(doc.createNode("paint").setMesh(mk(rp, mPaint, "paint")));
+  const concat = (arr) => { const o = { p: [], n: [], tris: 0 }; for (const c of arr) { for (let i = 0; i < c.p.length; i++) o.p.push(c.p[i]); for (let i = 0; i < c.n.length; i++) o.n.push(c.n[i]); o.tris += c.tris; } return o; };
+  const wheelKeys = ["fl", "fr", "rl", "rr"];
+  if (merged) {
+    // far LOD: wheels fixed to the body (no spin needed at distance); rims join the carbon mesh, tyres share one mesh -> 3 draw calls
+    const rc = processGroup(concat([cls.carbon, ...wheelKeys.map((k) => cls[`w_${k}_rim`])]), budget.carbon + 4 * budget.rim);
+    stats.carbon = rc.I.length / 3;
+    body.addChild(doc.createNode("carbon").setMesh(mk(rc, mCarbon, "carbon")));
+    const rt = processGroup(concat(wheelKeys.map((k) => cls[`w_${k}_tyre`])), 4 * budget.tyre);
+    stats.tyres = rt.I.length / 3;
+    body.addChild(doc.createNode("tyres").setMesh(mk(rt, mRubber, "tyre")));
+    return { doc, stats };
+  }
   const rc = processGroup(cls.carbon, budget.carbon);
   stats.carbon = rc.I.length / 3;
   body.addChild(doc.createNode("carbon").setMesh(mk(rc, mCarbon, "carbon")));
@@ -141,12 +154,13 @@ function build(budget) {
   return { doc, stats };
 }
 fs.mkdirSync(OUT, { recursive: true });
-const variants = {
-  hi: { paint: 26000, carbon: 24000, tyre: 2600, rim: 1800 },
-  lo: { paint: 1800, carbon: 1500, tyre: 280, rim: 160 },
-};
-for (const [name, b] of Object.entries(variants)) {
-  const { doc, stats } = build(b);
+const variants = [
+  ["hi", { paint: 26000, carbon: 24000, tyre: 2600, rim: 1800 }, false],
+  ["lo", { paint: 1800, carbon: 1500, tyre: 280, rim: 160 }, false],
+  ["far", { paint: 1800, carbon: 1500, tyre: 280, rim: 160 }, true],     // Godot far LOD: wheels merged into the body
+];
+for (const [name, b, merged] of variants) {
+  const { doc, stats } = build(b, merged);
   await new NodeIO().write(`${OUT}/f1_${name}.glb`, doc);
   console.log(name, JSON.stringify(stats), (fs.statSync(`${OUT}/f1_${name}.glb`).size / 1e6).toFixed(2), "MB");
 }

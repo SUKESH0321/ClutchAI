@@ -13,6 +13,7 @@ var tx := PackedFloat64Array()
 var ty := PackedFloat64Array()
 var hl := PackedFloat64Array()   # half width to the left of travel
 var hr := PackedFloat64Array()
+var kappa := PackedFloat64Array()  # signed path curvature (1/m), + = left turn
 # pit lane polyline
 var px := PackedFloat64Array()
 var py := PackedFloat64Array()
@@ -54,6 +55,10 @@ func _build(d: Dictionary) -> void:
 		var dy := y[(i + 1) % n] - y[(i - 1 + n) % n]
 		var l := maxf(1e-9, sqrt(dx * dx + dy * dy))
 		tx[i] = dx / l; ty[i] = dy / l
+	kappa.resize(n)
+	for i in n:
+		var j := (i + 2) % n
+		kappa[i] = (tx[i] * ty[j] - ty[i] * tx[j]) / (2.0 * step)
 	var pp: Array = d["pit_lane"]["points"]
 	var m := pp.size()
 	px.resize(m); py.resize(m); ptx.resize(m); pty.resize(m); pcum.resize(m)

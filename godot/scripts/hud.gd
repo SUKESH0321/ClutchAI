@@ -104,11 +104,14 @@ func _build_rain_overlay() -> void:
 	mat.set_shader_parameter("intensity", 0.0)
 	rect.material = mat
 	_w["rain_mat"] = mat
+	_w["rain_rect"] = rect
+	rect.visible = false             # a full-screen shader costs fill-rate even at zero intensity: only draw it in the wet
 	root.add_child(rect)
 
 
 func set_rain(v: float) -> void:
 	(_w["rain_mat"] as ShaderMaterial).set_shader_parameter("intensity", v)
+	(_w["rain_rect"] as ColorRect).visible = v > 0.02
 
 
 func _mk_vbox(sep: int = 4) -> VBoxContainer:
