@@ -49,7 +49,7 @@ export default function App() {
     return (
       <div className="min-h-screen grid place-items-center">
         <div className="text-center">
-          <div className="num text-5xl uppercase">The Impossible <span className="text-red">Pit Stop</span></div>
+          <div className="num text-5xl uppercase">Clutch<span className="text-red">AI</span></div>
           <div className="label mt-3 pulse-dot">{online ? "Loading race state" : "Connecting to the strategy backend on :8000"}</div>
           <div className="text-[11px] text-muted mt-2">Start it with: python -m uvicorn app.main:app --port 8000 (from backend/)</div>
         </div>

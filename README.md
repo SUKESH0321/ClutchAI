@@ -1,4 +1,4 @@
-# The Impossible Pit Stop: Race Strategist
+# ClutchAI: Race Strategist
 
 A deterministic endurance-race simulator with a **rolling-horizon pit-strategy optimizer**, a fixed-stint
 baseline, a paired benchmark, and a live **interactive 3D Silverstone** with eight cars.
@@ -6,6 +6,68 @@ Everything runs locally: no paid services, API keys, or cloud models.
 
 > The race model is synthetic and illustrative. Its parameters are not calibrated to real motorsport data, and
 > the rival cars are simulated AI, not real drivers or real data.
+
+## Run the Godot game on a new laptop (Windows, step by step)
+
+The Godot game is a native 3D client. The race and the AI strategy engine run in a small Python backend on your own
+machine, and the game connects to it. You need **no Node.js** and no account for this path.
+
+**1. Install two free tools** (once). If a command below says "not recognised" afterwards, close and reopen PowerShell.
+
+| Tool | Why | Install |
+|---|---|---|
+| **Git** | downloads the project | https://git-scm.com/download/win |
+| **uv** | installs Python 3.12 and the backend packages for you | `winget install --id=astral-sh.uv -e` (or https://docs.astral.sh/uv/getting-started/installation/) |
+
+**2. Download the project and set it up** (once; open PowerShell where you want the folder):
+
+```powershell
+git clone https://github.com/SUKESH0321/ClutchAI.git
+cd ClutchAI
+git checkout web-renderer-upgrade     # only until this branch is merged into main
+powershell -ExecutionPolicy Bypass -File run.ps1 setup -NoWeb
+powershell -ExecutionPolicy Bypass -File run.ps1 get-godot
+```
+
+`setup -NoWeb` creates the Python environment and installs the backend packages. `get-godot` downloads the free Godot 4.6.3
+engine (one 80 MB `.exe`, no installer) into `tools\godot`. If you already have Godot 4.6, skip `get-godot`
+(see "If Godot is somewhere else" below).
+
+**3. Play** (every time):
+
+```powershell
+powershell -ExecutionPolicy Bypass -File run.ps1 play
+```
+
+This starts the backend in a second window and opens the game. The very first launch spends about 20 seconds importing the
+game's models (it prints "First run: importing game assets"); later launches start immediately.
+
+**4. In the game**
+
+| What | How |
+|---|---|
+| Start / pause the race | **Start** button in the top bar, or **Space** |
+| Change circuit | **TRACK** dropdown at the top left, or press **T** (Silverstone, Spa-Francorchamps, Monza, Zandvoort). The race resets on the new circuit |
+| Cameras | **1** chase, **2** broadcast, **3** top-down, **4** orbit, **5** hood; mouse wheel zooms, drag rotates in orbit |
+| Race console (telemetry, strategy, events) | **C** or the tyre button at the bottom |
+| Rain / safety car | console, **Events** tab |
+| Switch car to follow | **Tab** |
+| Graphics quality | **Q** cycles performance / balanced / high / ultra. The game picks a sensible one for your GPU and lowers it by itself if the frame rate drops |
+| Reset race / next lap | **R** / **N** |
+
+**If the window shows "BACKEND OFFLINE":** the backend is not running. Run `run.ps1 backend` in one PowerShell window and leave it open,
+then `run.ps1 godot` in another. The game reconnects by itself.
+
+**If Godot is somewhere else:** `run.ps1 play -Godot "C:\path\to\Godot_v4.6.x_win64.exe"`, or open the `godot` folder in the Godot 4.6 editor
+(Import, then **F5**) while the backend is running. Use the standard Godot build, not the .NET one.
+
+**Requirements:** Windows 10/11, any GPU that supports OpenGL 3.3 (the game uses Godot's Compatibility renderer, so integrated graphics work),
+about 1 GB of free disk space, and internet only for the downloads in steps 1 and 2.
+
+**macOS / Linux:** download Godot 4.6 for your system from https://godotengine.org/download, then run the backend by hand
+(`uv venv --python 3.12 backend/.venv`, `uv pip install --python backend/.venv/bin/python -r backend/requirements.txt`,
+then `cd backend && .venv/bin/python -m uvicorn app.main:app --port 8000`) and start the game with
+`godot --path godot` (run `godot --headless --path godot --import` once first). Only Windows has been tested.
 
 ## Quick start: download and run (Windows)
 
@@ -38,15 +100,15 @@ This is the Python backend: it simulates the race and runs the strategy optimize
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File run.ps1 web      # browser app: open http://localhost:5173
-powershell -ExecutionPolicy Bypass -File run.ps1 godot    # Godot 3D game (needs Godot 4.6, see below)
+powershell -ExecutionPolicy Bypass -File run.ps1 godot    # Godot 3D game (needs the backend running; or use `run.ps1 play`)
 ```
 
 **4. Play:** press **Start**. Click the tyre button at the bottom (or press `C`) for the race console. In
 **Events & controls** you can trigger rain or a safety car and watch the optimizer replan and box the car.
 
-**Godot notes.** `run.ps1 godot` looks for Godot in your Downloads, Desktop and `Develop` folders. If it is
-elsewhere: `run.ps1 godot -Godot "C:\path\to\Godot_v4.6.x_win64.exe"`, or open `godot\project.godot` in the Godot
-editor and press **F5**. Godot is a single `.exe`, there is nothing to install.
+**Godot notes.** The full Godot walkthrough (including a new laptop) is in "Run the Godot game on a new laptop" above.
+`run.ps1 godot` looks in `tools\godot` (from `run.ps1 get-godot`), your Downloads, Desktop and `Develop` folders; otherwise pass
+`-Godot "C:\path\to\Godot_v4.6.x_win64.exe"`.
 
 **Run the AI benchmark yourself** (100 paired races, about 30 seconds):
 

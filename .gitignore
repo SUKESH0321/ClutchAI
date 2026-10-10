@@ -24,3 +24,6 @@ data/shots/
 assets/f1/source/
 !results/latest_*.json
 !results/latest_*.csv
+
+# downloaded Godot (run.ps1 get-godot)
+tools/godot/

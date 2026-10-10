@@ -8,12 +8,15 @@ rain and a maroon-red HUD. It contains no race logic: every number comes from th
 
 ## Run it
 
+Easiest on any Windows laptop: see **"Run the Godot game on a new laptop"** in the [main README](../README.md) (`run.ps1 setup -NoWeb`, `run.ps1 get-godot`, `run.ps1 play`).
+Manual route:
+
 1. Start the backend (from `backend/`):
    `.\.venv\Scripts\python.exe -m uvicorn app.main:app --port 8000`
 2. Open Godot 4.6, **Import** `godot/project.godot`, press **F5** (or run
    `Godot_v4.6.3-stable_win64.exe --path godot`).
    If the backend is not running the window shows a "Connecting to the strategy backend" notice; start it
-   and the client reconnects by itself. To use another machine: `-- --host=192.168.1.20:8000`.
+   and the client reconnects by itself. Change circuit in game with the TRACK dropdown or **T**. To use another machine: `-- --host=192.168.1.20:8000`.
 
 Uses the **Compatibility (OpenGL)** renderer so it runs on integrated GPUs too.
 

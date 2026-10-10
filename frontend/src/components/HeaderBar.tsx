@@ -32,7 +32,7 @@ export default function HeaderBar(p: Props) {
             {online ? (mode === "ws" ? "LIVE FEED / WEBSOCKET" : "LIVE FEED / POLLING") : "BACKEND OFFLINE"}
           </div>
           <h1 className="num text-[26px] leading-[0.95] uppercase tracking-wide">
-            The Impossible <span className="text-red">Pit Stop</span>
+            Clutch<span className="text-red">AI</span>
           </h1>
         </div>
 

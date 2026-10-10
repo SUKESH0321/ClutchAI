@@ -162,7 +162,7 @@ func _build_header() -> void:
 	t.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	t.add_theme_font_override("normal_font", Style.font("display"))
 	t.add_theme_font_size_override("normal_font_size", 28)
-	t.text = "THE IMPOSSIBLE [color=#ff3b47]PIT STOP[/color]  [font_size=13][color=#cfb0b4]GODOT 3D[/color][/font_size]"
+	t.text = "CLUTCH[color=#ff3b47]AI[/color]  [font_size=13][color=#cfb0b4]GODOT 3D[/color][/font_size]"
 	title.add_child(t)
 	h.add_child(title)
 	h.add_child(_readout("Status", "status"))
@@ -223,6 +223,19 @@ func _build_left() -> void:
 	var col := _mk_vbox(8)
 	root.add_child(col)
 	_pin(col, 0.0, 0.0, 12, 78)
+	# track selector: the backend resets the race on the chosen circuit and every client (this one included) rebuilds for it
+	var trk := _mk_hbox(6)
+	trk.add_child(Style.label("TRACK (T)", 11, Style.MUTED, "ui"))
+	var opt := OptionButton.new()
+	var ids := ["silverstone", "spa", "monza", "zandvoort"]
+	var labels := ["Silverstone", "Spa-Francorchamps", "Monza", "Zandvoort"]
+	for k in ids.size():
+		opt.add_item(labels[k], k)
+	opt.selected = maxi(0, ids.find(main.circuit_id))
+	opt.add_theme_font_size_override("font_size", 14)
+	opt.item_selected.connect(func(idx: int) -> void: main.change_circuit(ids[idx]))
+	trk.add_child(opt)
+	col.add_child(trk)
 	var cams := _mk_hbox(4)
 	var names := ["1 Chase", "2 Broadcast", "3 Top", "4 Orbit", "5 Hood"]
 	for i in names.size():

@@ -1,4 +1,4 @@
-# THE IMPOSSIBLE PIT STOP — BUILD PLAN (for phased Sonnet execution)
+# CLUTCHAI — BUILD PLAN (for phased Sonnet execution)
 
 > How to use: every Sonnet session gets **Part A (sections 0–6)** plus **one Phase from Part B**.
 > Starter prompt for each session:
@@ -31,7 +31,7 @@ Rules that prevent Windows roadblocks:
 ## 1. Repository layout (final)
 
 ```
-impossible-pit-stop/
+clutchai/
   README.md
   .gitignore
   PLAN.md

@@ -1,5 +1,5 @@
 extends Node3D
-## Impossible Pit Stop 3D: native Godot client. All race state comes from the Python backend;
+## ClutchAI 3D: native Godot client. All race state comes from the Python backend;
 ## this scene only turns authoritative lap timing into motion (see race_clock.gd).
 
 enum Cam { CHASE, BROADCAST, TOP, ORBIT, HOOD }
@@ -241,6 +241,10 @@ func _compute_center() -> void:
 		minx = minf(minx, circuit.x[i]); maxx = maxf(maxx, circuit.x[i])
 		miny = minf(miny, circuit.y[i]); maxy = maxf(maxy, circuit.y[i])
 	_center = Vector3((minx + maxx) * 0.5, 0.0, -(miny + maxy) * 0.5)
+	# frame the whole circuit whatever its size (the defaults were tuned on Silverstone, ~1950 m across)
+	var extent := maxf(maxx - minx, maxy - miny)
+	_orbit_dist = extent * 1.3
+	_top_height = extent * 1.9
 
 
 func _make_broadcast_spots() -> void:
@@ -485,6 +489,15 @@ func _update_effects() -> void:
 
 
 # ------------------------------------------------------------------ cameras
+const CIRCUIT_IDS := ["silverstone", "spa", "monza", "zandvoort"]
+
+
+## Ask the backend for a fresh race on another circuit; when the new state arrives this scene rebuilds for it.
+func change_circuit(id: String) -> void:
+	if id != circuit_id:
+		Backend.reset(str(state.get("config_name", "demo")), id)
+
+
 func set_camera_mode(m: int) -> void:
 	cam_mode = m
 	_spot_valid = false
@@ -593,6 +606,7 @@ func _unhandled_input(e: InputEvent) -> void:
 			KEY_4: set_camera_mode(Cam.ORBIT)
 			KEY_5: set_camera_mode(Cam.HOOD)
 			KEY_TAB: cycle_selection(1)
+			KEY_T: change_circuit(CIRCUIT_IDS[(CIRCUIT_IDS.find(circuit_id) + 1) % CIRCUIT_IDS.size()])
 			KEY_Q:
 				var qi: int = (Quality.LEVELS.find(quality_level) + 1) % Quality.LEVELS.size()
 				apply_quality(Quality.LEVELS[qi])
