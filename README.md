@@ -343,6 +343,22 @@ fixed-stint baseline. Nothing in the model is changed; the two strategies simply
 | spa | mid-field car (0.00 s) | rain | **18%** | 0% | 1.90 | 6.78 | +41.8 s |
 | spa | mid-field car (0.00 s) | safety car | **0%** | 0% | 3.02 | 2.83 | -1.1 s |
 | spa | mid-field car (0.00 s) | rain and sc | **75%** | 0% | 1.25 | 7.22 | +47.3 s |
+| monza | fast car (-0.55 s) | dry | **72%** | 88% | 1.27 | 1.12 | -0.6 s |
+| monza | fast car (-0.55 s) | rain | **100%** | 0% | 1.00 | 3.73 | +34.6 s |
+| monza | fast car (-0.55 s) | safety car | **92%** | 92% | 1.07 | 1.07 | -0.2 s |
+| monza | fast car (-0.55 s) | rain and sc | **88%** | 0% | 1.12 | 4.85 | +29.8 s |
+| monza | mid-field car (0.00 s) | dry | **0%** | 0% | 4.47 | 4.38 | -0.6 s |
+| monza | mid-field car (0.00 s) | rain | **68%** | 0% | 1.35 | 6.03 | +34.6 s |
+| monza | mid-field car (0.00 s) | safety car | **0%** | 0% | 2.88 | 2.88 | -0.2 s |
+| monza | mid-field car (0.00 s) | rain and sc | **18%** | 0% | 2.05 | 6.62 | +29.8 s |
+| zandvoort | fast car (-0.55 s) | dry | **82%** | 88% | 1.18 | 1.12 | +0.3 s |
+| zandvoort | fast car (-0.55 s) | rain | **100%** | 0% | 1.00 | 3.92 | +31.4 s |
+| zandvoort | fast car (-0.55 s) | safety car | **92%** | 92% | 1.07 | 1.07 | -0.2 s |
+| zandvoort | fast car (-0.55 s) | rain and sc | **88%** | 0% | 1.12 | 5.20 | +30.3 s |
+| zandvoort | mid-field car (0.00 s) | dry | **0%** | 0% | 4.30 | 4.53 | +0.3 s |
+| zandvoort | mid-field car (0.00 s) | rain | **42%** | 0% | 1.68 | 6.10 | +31.4 s |
+| zandvoort | mid-field car (0.00 s) | safety car | **0%** | 0% | 2.88 | 2.88 | -0.2 s |
+| zandvoort | mid-field car (0.00 s) | rain and sc | **2%** | 0% | 2.23 | 6.92 | +30.3 s |
 
 (Each row: 40 seeds, identical hidden world and the same 7 rule-based rivals for both strategies.)
 <!-- /VICTORY_TABLE -->
