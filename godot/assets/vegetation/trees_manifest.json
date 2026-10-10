@@ -4,7 +4,7 @@
   "kind": "Large",
   "height_m": 22,
   "crown_radius_m": 10.49,
-  "triangles": 2918,
+  "triangles": 1304,
   "source": "EZTree0.Large"
  },
  {
@@ -12,7 +12,7 @@
   "kind": "Medium",
   "height_m": 13,
   "crown_radius_m": 5.66,
-  "triangles": 3307,
+  "triangles": 1284,
   "source": "EZTree0.Medium010"
  },
  {
@@ -20,7 +20,7 @@
   "kind": "Medium",
   "height_m": 13,
   "crown_radius_m": 5.91,
-  "triangles": 2517,
+  "triangles": 1313,
   "source": "EZTree0.Medium011"
  },
  {
@@ -28,7 +28,7 @@
   "kind": "Bush",
   "height_m": 3.4,
   "crown_radius_m": 2.67,
-  "triangles": 11002,
+  "triangles": 8646,
   "source": "EZTree1.Bush006"
  },
  {
@@ -36,7 +36,7 @@
   "kind": "Large",
   "height_m": 22,
   "crown_radius_m": 9.58,
-  "triangles": 6471,
+  "triangles": 2248,
   "source": "EZTree1.Large001"
  },
  {
@@ -44,7 +44,7 @@
   "kind": "Large",
   "height_m": 22,
   "crown_radius_m": 11.16,
-  "triangles": 4082,
+  "triangles": 1329,
   "source": "EZTree1.Large009"
  },
  {
@@ -52,7 +52,7 @@
   "kind": "Medium",
   "height_m": 13,
   "crown_radius_m": 5.82,
-  "triangles": 2472,
+  "triangles": 1200,
   "source": "EZTree1.Medium002"
  }
 ]

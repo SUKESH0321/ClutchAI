@@ -9,7 +9,7 @@ Everything runs locally: no paid services, API keys, or cloud models.
 
 ## Run the Godot game on a new laptop (Windows, step by step)
 
-The Godot game is a native 3D client. The race and the AI strategy engine run in a small Python backend on your own
+The Godot game is a native 3D client. It starts full screen (F11 toggles windowed). The race and the AI strategy engine run in a small Python backend on your own
 machine, and the game connects to it. You need **no Node.js** and no account for this path.
 
 **1. Install two free tools** (once). If a command below says "not recognised" afterwards, close and reopen PowerShell.
@@ -318,8 +318,56 @@ for how to run it, the controls, credits and `godot/check.ps1`.
 
 ![Godot broadcast camera](docs/screenshots/godot-broadcast-live.png)
 
+## Does the strategy actually win the race?
+
+The live game races the strategy car (ADP) against seven rule-based rivals. `python -m app.victory --trials 40 --circuit spa` runs a full-field
+experiment: for each seed the **same hidden world** and the **same rivals**, once with the optimizer driving the strategy car and once with the
+fixed-stint baseline. Nothing in the model is changed; the two strategies simply race the same field. Results (simulated, not real-world):
+
+<!-- VICTORY_TABLE -->
+| circuit | strategy car | scenario | wins: optimizer | wins: fixed stint | mean pos: optimizer | mean pos: fixed | time saved |
+|---|---|---|---|---|---|---|---|
+| silverstone | fast car (-0.55 s) | dry | **75%** | 82% | 1.25 | 1.18 | -0.7 s |
+| silverstone | fast car (-0.55 s) | rain | **98%** | 0% | 1.02 | 5.60 | +45.2 s |
+| silverstone | fast car (-0.55 s) | safety car | **88%** | 88% | 1.12 | 1.12 | -0.3 s |
+| silverstone | fast car (-0.55 s) | rain and sc | **98%** | 0% | 1.02 | 4.10 | +35.8 s |
+| silverstone | mid-field car (0.00 s) | dry | **0%** | 0% | 4.22 | 4.05 | -0.7 s |
+| silverstone | mid-field car (0.00 s) | rain | **68%** | 0% | 1.32 | 6.85 | +45.2 s |
+| silverstone | mid-field car (0.00 s) | safety car | **0%** | 0% | 2.88 | 2.88 | -0.3 s |
+| silverstone | mid-field car (0.00 s) | rain and sc | **70%** | 0% | 1.30 | 5.92 | +35.8 s |
+| spa | fast car (-0.55 s) | dry | **75%** | 78% | 1.25 | 1.23 | -0.0 s |
+| spa | fast car (-0.55 s) | rain | **98%** | 0% | 1.02 | 5.85 | +41.8 s |
+| spa | fast car (-0.55 s) | safety car | **78%** | 88% | 1.30 | 1.12 | -1.1 s |
+| spa | fast car (-0.55 s) | rain and sc | **98%** | 0% | 1.02 | 6.40 | +47.3 s |
+| spa | mid-field car (0.00 s) | dry | **0%** | 0% | 3.80 | 3.88 | -0.0 s |
+| spa | mid-field car (0.00 s) | rain | **18%** | 0% | 1.90 | 6.78 | +41.8 s |
+| spa | mid-field car (0.00 s) | safety car | **0%** | 0% | 3.02 | 2.83 | -1.1 s |
+| spa | mid-field car (0.00 s) | rain and sc | **75%** | 0% | 1.25 | 7.22 | +47.3 s |
+
+(Each row: 40 seeds, identical hidden world and the same 7 rule-based rivals for both strategies.)
+<!-- /VICTORY_TABLE -->
+
+What this shows, and what it does not:
+* **When the weather or a safety car gives the strategy something to exploit (rain, rain + safety car), the optimizer wins the race about 7 times in 10 with a
+  mid-field car and almost every time with an equally fast car, where the fixed-stint plan almost never does.** The gain is 35 to 50 s per race: the optimizer
+  switches to wet tyres and back at the right moment; the rule-based rivals and the fixed plan react late.
+* **In a dry race, or with only a safety car, the optimizer does not beat the fixed-stint plan** (it is within about a second, sometimes slightly behind, because it hedges against futures that do
+  not happen). A strategy cannot turn a slower car into a winner on pure pace: the mid-field car does not win dry races.
+* The "fast car" rows give the strategy car the pace of the quickest rival (offset -0.55 s vs -0.45 s) so that strategy, not machinery, decides the result.
+
+**Demos** (pick them in the game's DEMO dropdown, or `config` in the web console; `POST /api/race/reset {"config_name": ...}`). All use seed 100, scripted events and run on any circuit:
+
+| demo | what happens | result on Silverstone |
+|---|---|---|
+| `demo_win_rain` | fast car, heavy rain from lap 8 for 7 laps | strategy car wins; the fixed plan would finish 7th, 51 s slower |
+| `demo_win_chaos` | fast car, rain then a safety car | strategy car wins; fixed plan 4th, 29 s slower |
+| `demo_underdog_rain` | mid-field car (pace 0.0), rain | strategy car wins from the middle of the pack; fixed plan 7th |
+| `demo_win_sc` | fast car, safety car on lap 10 | wins; same as the fixed plan |
+| `demo_win_dry` | fast car, dry | wins; the optimizer only ties the fixed plan |
+| `demo_scripted` / `demo` | original demos (mid-field car) | unchanged |
+
 ## Godot vegetation (supplied tree and grass models)
-The Godot client grows 7 supplied realistic trees (3 large, 3 medium, 1 bush; textured, alpha-cut leaves) and 4 grass clumps around every circuit, in forest
+The Godot client grows about 30,000 trees from 7 supplied realistic models and about 110,000 grass clumps (3 large, 3 medium, 1 bush; textured, alpha-cut leaves) and 4 grass clumps around every circuit, in forest
 stands with a 46 m clearance from the track edge, away from the pit lane, grandstands and the outside of corners. They are optimised from the 55 MB originals in
 `assets/` to about 5 MB by `scripts/godot_assets/build_vegetation.mjs` (run `npm install @gltf-transform/core @gltf-transform/extensions meshoptimizer sharp` next to it first), and drawn as
 chunked MultiMeshes with a visibility range. Press **Q** to change quality: grass is off in `performance`, half in `balanced`, full in `high`/`ultra`; trees cast shadows only in `high`/`ultra`

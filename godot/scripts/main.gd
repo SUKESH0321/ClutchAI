@@ -498,6 +498,10 @@ func change_circuit(id: String) -> void:
 		Backend.reset(str(state.get("config_name", "demo")), id)
 
 
+func change_scenario(config_name: String) -> void:
+	Backend.reset(config_name, circuit_id)
+
+
 func set_camera_mode(m: int) -> void:
 	cam_mode = m
 	_spot_valid = false
@@ -606,6 +610,9 @@ func _unhandled_input(e: InputEvent) -> void:
 			KEY_4: set_camera_mode(Cam.ORBIT)
 			KEY_5: set_camera_mode(Cam.HOOD)
 			KEY_TAB: cycle_selection(1)
+			KEY_F11:
+				var fs := DisplayServer.window_get_mode() == DisplayServer.WINDOW_MODE_FULLSCREEN
+				DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_WINDOWED if fs else DisplayServer.WINDOW_MODE_FULLSCREEN)
 			KEY_T: change_circuit(CIRCUIT_IDS[(CIRCUIT_IDS.find(circuit_id) + 1) % CIRCUIT_IDS.size()])
 			KEY_Q:
 				var qi: int = (Quality.LEVELS.find(quality_level) + 1) % Quality.LEVELS.size()

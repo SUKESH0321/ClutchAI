@@ -17,7 +17,7 @@ const TREE_CLEARANCE := 46.0
 const GRASS_CLEARANCE := 26.0
 const PIT_CLEARANCE := 85.0
 const CORNER_OPEN_R := 90.0
-const FULL_TREES := 7500          # instances at density 1.0
+const FULL_TREES := 30000          # instances at density 1.0
 const FULL_GRASS := 110000
 
 var tree_nodes: Array = []
@@ -166,7 +166,7 @@ func build(c: Circuit, exclusions: Array, seed_v: int = 7) -> void:
 	for key in per_chunk:
 		var ch: Dictionary = per_chunk[key]
 		for sp in ch["trees"]:
-			_emit(ch["trees"][sp], TREE_FILES[sp], "trees_real_%s_%d" % [key, sp], 950.0, tree_nodes)
+			_emit(ch["trees"][sp], TREE_FILES[sp], "trees_real_%s_%d" % [key, sp], 700.0, tree_nodes)
 		for sp in ch["grass"]:
 			_emit(ch["grass"][sp], GRASS_FILES[sp], "grass_%s_%d" % [key, sp], 380.0, grass_nodes)
 
@@ -215,7 +215,7 @@ func _emit(xfs: Array, file: String, node_name: String, vis_end: float, into: Ar
 	if file.begins_with("grass"):
 		if _grass_mat == null:
 			_grass_mat = StandardMaterial3D.new()
-			_grass_mat.albedo_color = Color("#3e8a28")        # natural green, matte
+			_grass_mat.albedo_color = Color("#4b6a31")        # muted natural green, matte
 			_grass_mat.roughness = 1.0
 			_grass_mat.metallic = 0.0
 			_grass_mat.metallic_specular = 0.0

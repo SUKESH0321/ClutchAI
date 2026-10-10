@@ -236,6 +236,21 @@ func _build_left() -> void:
 	opt.item_selected.connect(func(idx: int) -> void: main.change_circuit(ids[idx]))
 	trk.add_child(opt)
 	col.add_child(trk)
+	# scenario / demo selector: each is a backend config; picking one resets the race on the current circuit
+	var scn := _mk_hbox(6)
+	scn.add_child(Style.label("DEMO", 11, Style.MUTED, "ui"))
+	var sopt := OptionButton.new()
+	var cfgs := ["demo", "demo_win_rain", "demo_win_chaos", "demo_underdog_rain", "demo_win_sc", "demo_win_dry", "demo_scripted", "default"]
+	var clabels := ["Default demo (dry)", "WIN: fast car, rain", "WIN: rain + safety car", "WIN: mid-field car, rain", "Fast car, safety car", "Fast car, dry (tie)", "Scripted rain + SC", "Random events"]
+	for k in cfgs.size():
+		sopt.add_item(clabels[k], k)
+	sopt.selected = maxi(0, cfgs.find(str(main.state.get("config_name", "demo"))))
+	sopt.add_theme_font_size_override("font_size", 14)
+	sopt.item_selected.connect(func(idx: int) -> void: main.change_scenario(cfgs[idx]))
+	scn.add_child(sopt)
+	_w["demo_opt"] = sopt
+	_w["demo_cfgs"] = cfgs
+	col.add_child(scn)
 	var cams := _mk_hbox(4)
 	var names := ["1 Chase", "2 Broadcast", "3 Top", "4 Orbit", "5 Hood"]
 	for i in names.size():
@@ -710,6 +725,10 @@ func _tab_events() -> Control:
 
 # ------------------------------------------------------------------ updates
 func on_state(state: Dictionary) -> void:
+	if _w.has("demo_opt"):
+		var ci: int = (_w["demo_cfgs"] as Array).find(str(state.get("config_name", "")))
+		if ci >= 0 and (_w["demo_opt"] as OptionButton).selected != ci:
+			(_w["demo_opt"] as OptionButton).select(ci)
 	s = state
 	var status: String = state["status"]
 	var col := {"idle": Style.MUTED, "running": Style.GREEN, "paused": Style.AMBER, "finished": Style.CYAN}.get(status, Style.INK) as Color

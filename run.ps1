@@ -88,7 +88,7 @@ switch ($Task) {
             Write-Host "First run: importing game assets (about 20 seconds)..." -ForegroundColor Cyan
             & $exe --headless --path $proj --import | Out-Null
         }
-        & $exe --path $proj --resolution 1600x900
+        & $exe --path $proj        # starts full screen (F11 toggles windowed)
     }
     "test" {
         Push-Location (Join-Path $root "backend"); & $py -m pytest -q; Pop-Location

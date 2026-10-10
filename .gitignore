@@ -27,3 +27,4 @@ assets/f1/source/
 
 # downloaded Godot (run.ps1 get-godot)
 tools/godot/
+!results/victory_*.json

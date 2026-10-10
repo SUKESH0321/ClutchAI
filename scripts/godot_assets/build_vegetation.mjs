@@ -100,7 +100,7 @@ for (const [key, list] of groups) {
   for (const g of list) {
     const leaves = g.mat.getAlphaMode() === "BLEND";
     for (let i = 0; i < g.pos.length; i += 3) { g.pos[i] = (g.pos[i] - cx) * s; g.pos[i + 1] = (g.pos[i + 1] - mn[1]) * s; g.pos[i + 2] = (g.pos[i + 2] - cz) * s; }
-    const r = simplify(g, leaves ? 1700 : 900, leaves ? 0.06 : 0.04);
+    const r = kind === "Bush" ? simplify(g, leaves ? 500 : 400, 0.4) : simplify(g, leaves ? 900 : 450, leaves ? 0.1 : 0.06);
     const mat = out.createMaterial(g.mat.getName()).setBaseColorFactor(g.mat.getBaseColorFactor()).setDoubleSided(true).setRoughnessFactor(0.9).setMetallicFactor(0);
     if (leaves) mat.setAlphaMode("MASK").setAlphaCutoff(0.5);
     const tex = await convertTexture(out, g.mat.getBaseColorTexture(), leaves);

@@ -60,8 +60,8 @@ class RaceSession:
         sched = build_schedule(cfg)
         self.cfg, self.config_name = cfg, name
         self.policy = AdaptivePolicy(cfg)
-        self.engine = RaceEngine(cfg, sched, self.policy)
-        self.baseline = RaceEngine(cfg, copy.deepcopy(sched), FixedStintBaseline(cfg))
+        self.engine = RaceEngine(cfg, sched, self.policy, pace_offset_s=cfg.primary_pace_s)
+        self.baseline = RaceEngine(cfg, copy.deepcopy(sched), FixedStintBaseline(cfg), pace_offset_s=cfg.primary_pace_s)
         self.rivals = []
         for i, r in enumerate(RIVALS, start=1):
             rcfg = cfg.model_copy(update={"start_compound": r["start"]})
@@ -237,7 +237,7 @@ class RaceSession:
             cars.append({
                 "id": spec["id"], "code": spec["code"], "name": spec["name"], "color": spec["color"],
                 "is_primary": primary, "grid_slot": spec["grid_slot"],
-                "pace_offset_s": 0.0 if primary else spec["pace"], "simulated": not primary,
+                "pace_offset_s": self.cfg.primary_pace_s if primary else spec["pace"], "simulated": not primary,
                 "laps": self._car_laps(eng), "elapsed_s": eng.elapsed_s, "compound": eng.compound,
                 "tyre_wear": eng.wear, "tyre_age": eng.tyre_age, "fuel_kg": eng.fuel_kg,
                 "pit_stops": eng.pit_stops,

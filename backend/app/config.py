@@ -113,6 +113,7 @@ class RaceConfig(BaseModel):
     total_laps: int = Field(25, ge=3, le=200)
     base_lap_s: float = 90.0
     seed: int = 7
+    primary_pace_s: float = 0.0         # strategy car pace vs the field in the live game (negative = faster; fastest rival is -0.45)
     start_compound: Compound = "MEDIUM"
     circuit: str = "silverstone"
     track_scaling: bool = True          # derive base lap, fuel and tyre-wear inputs from the circuit geometry (see tracks.py)

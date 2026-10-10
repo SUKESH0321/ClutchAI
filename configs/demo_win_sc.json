@@ -1,0 +1,13 @@
+{
+  "name": "demo_win_sc",
+  "seed": 100,
+  "random_events": false,
+  "primary_pace_s": -0.55,
+  "scripted_events": [
+    {
+      "lap": 10,
+      "type": "SC",
+      "duration": 3
+    }
+  ]
+}
