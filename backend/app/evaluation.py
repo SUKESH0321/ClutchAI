@@ -101,7 +101,7 @@ def _f(x: float) -> float:
     return x if math.isfinite(x) else 0.0
 
 
-def summarize(trials: list[TrialResult], seed_start: int, config_name: str, runtime_s: float) -> dict:
+def summarize(trials: list[TrialResult], seed_start: int, config_name: str, runtime_s: float, circuit_id: str = "silverstone") -> dict:
     ok = [t for t in trials if t.completed]
     n = len(ok)
     saved = np.array([t.saved_s for t in ok]) if ok else np.array([0.0])
@@ -138,13 +138,14 @@ def summarize(trials: list[TrialResult], seed_start: int, config_name: str, runt
         "by_category": by_cat, "runtime_s": _f(runtime_s),
         "created_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "config_name": config_name,
+        "circuit_id": circuit_id,
     }
 
 
 def run_benchmark(trials: int = 100, seed_start: int = 10000, scenarios: Optional[int] = None,
-                  config_name: str = "default",
+                  config_name: str = "default", circuit: Optional[str] = None,
                   progress_cb: Optional[Callable[[int, int], None]] = None) -> dict:
-    cfg = load_config(config_name)
+    cfg = load_config(config_name, circuit=circuit)
     M = scenarios or cfg.optimizer.scenarios_benchmark
     t0 = time.perf_counter()
     out: list[TrialResult] = []
@@ -152,7 +153,7 @@ def run_benchmark(trials: int = 100, seed_start: int = 10000, scenarios: Optiona
         out.append(run_trial(cfg, seed_start + i, M))
         if progress_cb:
             progress_cb(i + 1, trials)
-    summary = summarize(out, seed_start, config_name, time.perf_counter() - t0)
+    summary = summarize(out, seed_start, config_name, time.perf_counter() - t0, cfg.circuit)
     summary["scenarios"] = M
     return {"summary": summary, "trials": [asdict(t) for t in out]}
 
@@ -163,10 +164,11 @@ def export(results: dict, out_dir: Path | str = RESULTS_DIR) -> tuple[Path, Path
     stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     jp, cp = out / f"benchmark_{stamp}.json", out / f"benchmark_{stamp}.csv"
     text = json.dumps(results, indent=2, allow_nan=False)
-    for p in (jp, out / "latest.json"):
+    cid = results.get("summary", {}).get("circuit_id") or "silverstone"
+    for p in (jp, out / "latest.json", out / f"latest_{cid}.json"):     # latest.json = most recent run; latest_<circuit>.json never mixes circuits
         p.write_text(text, encoding="utf-8")
     csv_text = trials_csv(results)
-    for p in (cp, out / "latest.csv"):
+    for p in (cp, out / "latest.csv", out / f"latest_{cid}.csv"):
         p.write_text(csv_text, encoding="utf-8", newline="")
     return jp, cp
 
@@ -188,9 +190,10 @@ def main() -> None:
     ap.add_argument("--seed-start", type=int, default=10000)
     ap.add_argument("--scenarios", type=int, default=None)
     ap.add_argument("--config", default="default")
+    ap.add_argument("--circuit", default=None, help="circuit id (data/circuits); default: the config's circuit")
     ap.add_argument("--out", default=str(RESULTS_DIR))
     args = ap.parse_args()
-    res = run_benchmark(args.trials, args.seed_start, args.scenarios, args.config,
+    res = run_benchmark(args.trials, args.seed_start, args.scenarios, args.config, args.circuit,
                         lambda d, t: print(f"{d}/{t}", flush=True) if d % 25 == 0 or d == t else None)
     print()
     jp, cp = export(res, args.out)

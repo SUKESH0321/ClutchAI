@@ -12,6 +12,7 @@ $failed = $false
 
 function Run-Godot([string]$title, [string[]]$args_) {
     Write-Host "== $title"
+    $ErrorActionPreference = "Continue"      # Godot writes warnings to stderr; judge by the parsed output instead
     $out = & $Godot @args_ 2>&1 | Out-String
     $bad = ($out -split "`n") | Where-Object { $_ -match "SCRIPT ERROR|Parse Error|Failed to load script|Invalid access|Invalid call" }
     if ($bad) { $bad | ForEach-Object { Write-Host "   $_" }; $script:failed = $true; Write-Host "   FAILED" }

@@ -13,6 +13,7 @@ var tx := PackedFloat64Array()
 var ty := PackedFloat64Array()
 var hl := PackedFloat64Array()   # half width to the left of travel
 var hr := PackedFloat64Array()
+var kappa := PackedFloat64Array()  # signed path curvature (1/m), + = left turn
 # pit lane polyline
 var px := PackedFloat64Array()
 var py := PackedFloat64Array()
@@ -54,6 +55,10 @@ func _build(d: Dictionary) -> void:
 		var dy := y[(i + 1) % n] - y[(i - 1 + n) % n]
 		var l := maxf(1e-9, sqrt(dx * dx + dy * dy))
 		tx[i] = dx / l; ty[i] = dy / l
+	kappa.resize(n)
+	for i in n:
+		var j := (i + 2) % n
+		kappa[i] = (tx[i] * ty[j] - ty[i] * tx[j]) / (2.0 * step)
 	var pp: Array = d["pit_lane"]["points"]
 	var m := pp.size()
 	px.resize(m); py.resize(m); ptx.resize(m); pty.resize(m); pcum.resize(m)
@@ -107,17 +112,57 @@ func pit_at(s: float) -> Dictionary:
 	return {"x": px[lo] * (1.0 - k) + px[hi] * k, "y": py[lo] * (1.0 - k) + py[hi] * k, "tx": ttx / l, "ty": tty / l}
 
 
-func distance_to_track(qx: float, qy: float) -> float:
+var _grid: Dictionary = {}
+const _GRID_CELL := 80.0
+
+
+func _build_grid() -> void:
+	_grid.clear()
+	for i in n:
+		var key := Vector2i(int(floorf(x[i] / _GRID_CELL)), int(floorf(y[i] / _GRID_CELL)))
+		var cell: PackedInt32Array = _grid.get(key, PackedInt32Array())   # packed arrays are copied on read: write the cell back
+		cell.append(i)
+		_grid[key] = cell
+
+
+## Nearest centerline sample: {d: distance, i: index}. Uses a spatial hash (cells of 80 m, +-2 cells searched).
+func nearest(qx: float, qy: float) -> Dictionary:
+	if _grid.is_empty():
+		_build_grid()
+	var cx := int(floorf(qx / _GRID_CELL))
+	var cy := int(floorf(qy / _GRID_CELL))
 	var best := 1e18
-	var i := 0
-	while i < n:
-		var dx := qx - x[i]
-		var dy := qy - y[i]
-		var d2 := dx * dx + dy * dy
-		if d2 < best:
-			best = d2
-		i += 1
-	return sqrt(best)
+	var bi := 0
+	for radius in [2, 6, 14]:        # widen the search until a sample is found (far from the track the first pass finds none)
+		for dx in range(-radius, radius + 1):
+			for dy in range(-radius, radius + 1):
+				if radius > 2 and absi(dx) <= 2 and absi(dy) <= 2:
+					continue
+				var arr: Variant = _grid.get(Vector2i(cx + dx, cy + dy))
+				if arr == null:
+					continue
+				for i in (arr as PackedInt32Array):
+					var ddx := qx - x[i]
+					var ddy := qy - y[i]
+					var d2 := ddx * ddx + ddy * ddy
+					if d2 < best:
+						best = d2
+						bi = i
+		if best < 1e17:
+			break
+	return {"d": sqrt(best) if best < 1e17 else 1e9, "i": bi}
+
+
+func distance_to_track(qx: float, qy: float) -> float:
+	return float(nearest(qx, qy)["d"])
+
+
+## Distance from the track EDGE (metres, negative on the road), using the half-width on the nearer side.
+func edge_distance(qx: float, qy: float) -> float:
+	var r := nearest(qx, qy)
+	var i: int = r["i"]
+	var left := (-ty[i]) * (qx - x[i]) + tx[i] * (qy - y[i]) > 0.0
+	return float(r["d"]) - (hl[i] if left else hr[i])
 
 
 ## Sample dictionary arrays used by the mesh builders (main circuit or pit lane).

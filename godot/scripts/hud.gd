@@ -104,11 +104,14 @@ func _build_rain_overlay() -> void:
 	mat.set_shader_parameter("intensity", 0.0)
 	rect.material = mat
 	_w["rain_mat"] = mat
+	_w["rain_rect"] = rect
+	rect.visible = false             # a full-screen shader costs fill-rate even at zero intensity: only draw it in the wet
 	root.add_child(rect)
 
 
 func set_rain(v: float) -> void:
 	(_w["rain_mat"] as ShaderMaterial).set_shader_parameter("intensity", v)
+	(_w["rain_rect"] as ColorRect).visible = v > 0.02
 
 
 func _mk_vbox(sep: int = 4) -> VBoxContainer:
@@ -159,7 +162,7 @@ func _build_header() -> void:
 	t.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	t.add_theme_font_override("normal_font", Style.font("display"))
 	t.add_theme_font_size_override("normal_font_size", 28)
-	t.text = "THE IMPOSSIBLE [color=#ff3b47]PIT STOP[/color]  [font_size=13][color=#cfb0b4]GODOT 3D[/color][/font_size]"
+	t.text = "CLUTCH[color=#ff3b47]AI[/color]  [font_size=13][color=#cfb0b4]GODOT 3D[/color][/font_size]"
 	title.add_child(t)
 	h.add_child(title)
 	h.add_child(_readout("Status", "status"))
@@ -220,6 +223,34 @@ func _build_left() -> void:
 	var col := _mk_vbox(8)
 	root.add_child(col)
 	_pin(col, 0.0, 0.0, 12, 78)
+	# track selector: the backend resets the race on the chosen circuit and every client (this one included) rebuilds for it
+	var trk := _mk_hbox(6)
+	trk.add_child(Style.label("TRACK (T)", 11, Style.MUTED, "ui"))
+	var opt := OptionButton.new()
+	var ids := ["silverstone", "spa", "monza", "zandvoort"]
+	var labels := ["Silverstone", "Spa-Francorchamps", "Monza", "Zandvoort"]
+	for k in ids.size():
+		opt.add_item(labels[k], k)
+	opt.selected = maxi(0, ids.find(main.circuit_id))
+	opt.add_theme_font_size_override("font_size", 14)
+	opt.item_selected.connect(func(idx: int) -> void: main.change_circuit(ids[idx]))
+	trk.add_child(opt)
+	col.add_child(trk)
+	# scenario / demo selector: each is a backend config; picking one resets the race on the current circuit
+	var scn := _mk_hbox(6)
+	scn.add_child(Style.label("DEMO", 11, Style.MUTED, "ui"))
+	var sopt := OptionButton.new()
+	var cfgs := ["demo", "demo_win_rain", "demo_win_chaos", "demo_underdog_rain", "demo_win_sc", "demo_win_dry", "demo_scripted", "default"]
+	var clabels := ["Default demo (dry)", "WIN: fast car, rain", "WIN: rain + safety car", "WIN: mid-field car, rain", "Fast car, safety car", "Fast car, dry (tie)", "Scripted rain + SC", "Random events"]
+	for k in cfgs.size():
+		sopt.add_item(clabels[k], k)
+	sopt.selected = maxi(0, cfgs.find(str(main.state.get("config_name", "demo"))))
+	sopt.add_theme_font_size_override("font_size", 14)
+	sopt.item_selected.connect(func(idx: int) -> void: main.change_scenario(cfgs[idx]))
+	scn.add_child(sopt)
+	_w["demo_opt"] = sopt
+	_w["demo_cfgs"] = cfgs
+	col.add_child(scn)
 	var cams := _mk_hbox(4)
 	var names := ["1 Chase", "2 Broadcast", "3 Top", "4 Orbit", "5 Hood"]
 	for i in names.size():
@@ -694,6 +725,10 @@ func _tab_events() -> Control:
 
 # ------------------------------------------------------------------ updates
 func on_state(state: Dictionary) -> void:
+	if _w.has("demo_opt"):
+		var ci: int = (_w["demo_cfgs"] as Array).find(str(state.get("config_name", "")))
+		if ci >= 0 and (_w["demo_opt"] as OptionButton).selected != ci:
+			(_w["demo_opt"] as OptionButton).select(ci)
 	s = state
 	var status: String = state["status"]
 	var col := {"idle": Style.MUTED, "running": Style.GREEN, "paused": Style.AMBER, "finished": Style.CYAN}.get(status, Style.INK) as Color

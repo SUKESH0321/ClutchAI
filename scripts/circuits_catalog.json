@@ -1,0 +1,43 @@
+{
+  "silverstone": {
+    "csv": "Silverstone.csv", "name": "Silverstone Grand Prix Circuit", "location": "Northamptonshire", "country": "United Kingdom",
+    "official_length_m": 5891, "official_turns": 18,
+    "description": "Fast and flowing: the Maggotts-Becketts-Chapel sequence and the long Hangar Straight reward aerodynamic grip and tyre care.",
+    "landmarks": []
+  },
+  "spa": {
+    "csv": "Spa.csv", "name": "Circuit de Spa-Francorchamps", "location": "Stavelot", "country": "Belgium",
+    "official_length_m": 7004, "official_turns": 19,
+    "description": "The longest lap on the calendar: the plunge through Eau Rouge, the Kemmel Straight and the Bus Stop chicane make strategy and tyre wear very different from Silverstone.",
+    "landmarks": [
+      {"name": "La Source", "corner": 1},
+      {"name": "Eau Rouge", "corner": 2},
+      {"name": "Kemmel Straight", "straight": [4, 5]},
+      {"name": "Les Combes", "corner": 5},
+      {"name": "Bus Stop", "corner": 17}
+    ]
+  },
+  "monza": {
+    "csv": "Monza.csv", "name": "Autodromo Nazionale Monza", "location": "Monza", "country": "Italy",
+    "official_length_m": 5793, "official_turns": 11,
+    "description": "The temple of speed: long straights, heavy braking into the chicanes and the Parabolica, with little cornering load, so tyre wear is lower than at Silverstone.",
+    "landmarks": [
+      {"name": "Rettifilo", "corner": 1},
+      {"name": "Curva Grande", "corner": 3},
+      {"name": "Roggia", "corner": 4},
+      {"name": "Lesmo 1", "corner": 5},
+      {"name": "Lesmo 2", "corner": 6},
+      {"name": "Ascari", "corner": 8}
+    ]
+  },
+  "zandvoort": {
+    "csv": "Zandvoort.csv", "name": "Circuit Zandvoort", "location": "Zandvoort", "country": "Netherlands",
+    "official_length_m": 4259, "official_turns": 14,
+    "description": "A short, tight dune circuit with banked corners: the shortest lap here, so fuel burn per lap is the lowest.",
+    "landmarks": [
+      {"name": "Tarzan", "corner": 1},
+      {"name": "Hugenholtz", "corner": 3},
+      {"name": "Arie Luyendyk", "corner": 16}
+    ]
+  }
+}

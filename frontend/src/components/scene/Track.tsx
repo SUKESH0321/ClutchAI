@@ -11,6 +11,8 @@ import { jerseyBarrierGeometry, kerbTexture, poseMatrix, type TrackGeometries } 
 import { makePbrMaterial, patchWet, usePbr, type WetUniform } from "./materials";
 import type { LiveData } from "./live";
 import { Safe } from "./Safe";
+import { FinishFlag, StartLights } from "./Finish";
+import Skids from "./Skids";
 
 interface Props {
   circuit: Circuit;
@@ -172,6 +174,11 @@ export default function Track({ circuit: c, geo, live, q, wet, reco, boxLabel }:
           <planeGeometry args={[w0, 4]} />
           <meshBasicMaterial map={chequer} />
         </mesh>
+      </group>
+      <Safe name="braking-zone rubber"><Skids circuit={c} live={live} q={q} /></Safe>
+      <group position={[start.x, 0, -start.y]} rotation={[0, Math.atan2(start.ty, start.tx), 0]}>
+        <StartLights live={live} width={w0} />
+        <FinishFlag live={live} side={-(c.hl[0] + 4)} width={w0} />
       </group>
       <Safe name="start gantry">
         <GlbObject url={KENNEY("overhead")} size={w0 + 18} position={[start.x, 0, -start.y]}

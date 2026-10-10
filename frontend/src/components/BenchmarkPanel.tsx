@@ -4,8 +4,8 @@ import { useBenchmark } from "../hooks/useBenchmark";
 import { fmtClock, pct } from "../lib/format";
 import { Chip, Panel, Stat } from "./ui/Panel";
 
-export default function BenchmarkPanel() {
-  const { results, status, error, run } = useBenchmark();
+export default function BenchmarkPanel({ circuitId, circuitName }: { circuitId: string; circuitName: string }) {
+  const { results, status, error, run } = useBenchmark(circuitId);
   const [trials, setTrials] = useState(100);
   const [seed, setSeed] = useState(10000);
   const running = status.state === "running";
@@ -27,7 +27,7 @@ export default function BenchmarkPanel() {
   return (
     <Panel
       idx="10" title="Benchmark / adaptive vs fixed-stint baseline (paired trials)"
-      right={s ? <><Chip color={s.seed_set === "eval" ? "#22D37A" : "#FFB020"}>{s.seed_set} seeds</Chip><Chip>{s.trials} trials</Chip></> : undefined}
+      right={s ? <><Chip color="#FF3B47">{circuitName}</Chip><Chip color={s.seed_set === "eval" ? "#22D37A" : "#FFB020"}>{s.seed_set} seeds</Chip><Chip>{s.trials} trials</Chip></> : undefined}
     >
       <div className="flex flex-wrap items-end gap-3 mb-4">
         <label className="label">Trials
@@ -55,7 +55,7 @@ export default function BenchmarkPanel() {
 
       {!s ? (
         <div className="text-muted py-8 text-center border border-dashed border-line">
-          No benchmark results yet. Run one above (or `python -m app.evaluation` in backend/).
+          No benchmark results yet for {circuitName}. Results are kept per circuit and never mixed: run one above (or `python -m app.evaluation --circuit {circuitId}` in backend/).
         </div>
       ) : (
         <>

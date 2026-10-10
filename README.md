@@ -1,4 +1,4 @@
-# The Impossible Pit Stop: Race Strategist
+# ClutchAI: Race Strategist
 
 A deterministic endurance-race simulator with a **rolling-horizon pit-strategy optimizer**, a fixed-stint
 baseline, a paired benchmark, and a live **interactive 3D Silverstone** with eight cars.
@@ -6,6 +6,68 @@ Everything runs locally: no paid services, API keys, or cloud models.
 
 > The race model is synthetic and illustrative. Its parameters are not calibrated to real motorsport data, and
 > the rival cars are simulated AI, not real drivers or real data.
+
+## Run the Godot game on a new laptop (Windows, step by step)
+
+The Godot game is a native 3D client. It starts full screen (F11 toggles windowed). The race and the AI strategy engine run in a small Python backend on your own
+machine, and the game connects to it. You need **no Node.js** and no account for this path.
+
+**1. Install two free tools** (once). If a command below says "not recognised" afterwards, close and reopen PowerShell.
+
+| Tool | Why | Install |
+|---|---|---|
+| **Git** | downloads the project | https://git-scm.com/download/win |
+| **uv** | installs Python 3.12 and the backend packages for you | `winget install --id=astral-sh.uv -e` (or https://docs.astral.sh/uv/getting-started/installation/) |
+
+**2. Download the project and set it up** (once; open PowerShell where you want the folder):
+
+```powershell
+git clone https://github.com/SUKESH0321/ClutchAI.git
+cd ClutchAI
+git checkout web-renderer-upgrade     # only until this branch is merged into main
+powershell -ExecutionPolicy Bypass -File run.ps1 setup -NoWeb
+powershell -ExecutionPolicy Bypass -File run.ps1 get-godot
+```
+
+`setup -NoWeb` creates the Python environment and installs the backend packages. `get-godot` downloads the free Godot 4.6.3
+engine (one 80 MB `.exe`, no installer) into `tools\godot`. If you already have Godot 4.6, skip `get-godot`
+(see "If Godot is somewhere else" below).
+
+**3. Play** (every time):
+
+```powershell
+powershell -ExecutionPolicy Bypass -File run.ps1 play
+```
+
+This starts the backend in a second window and opens the game. The very first launch spends about 20 seconds importing the
+game's models (it prints "First run: importing game assets"); later launches start immediately.
+
+**4. In the game**
+
+| What | How |
+|---|---|
+| Start / pause the race | **Start** button in the top bar, or **Space** |
+| Change circuit | **TRACK** dropdown at the top left, or press **T** (Silverstone, Spa-Francorchamps, Monza, Zandvoort). The race resets on the new circuit |
+| Cameras | **1** chase, **2** broadcast, **3** top-down, **4** orbit, **5** hood; mouse wheel zooms, drag rotates in orbit |
+| Race console (telemetry, strategy, events) | **C** or the tyre button at the bottom |
+| Rain / safety car | console, **Events** tab |
+| Switch car to follow | **Tab** |
+| Graphics quality | **Q** cycles performance / balanced / high / ultra. The game picks a sensible one for your GPU and lowers it by itself if the frame rate drops |
+| Reset race / next lap | **R** / **N** |
+
+**If the window shows "BACKEND OFFLINE":** the backend is not running. Run `run.ps1 backend` in one PowerShell window and leave it open,
+then `run.ps1 godot` in another. The game reconnects by itself.
+
+**If Godot is somewhere else:** `run.ps1 play -Godot "C:\path\to\Godot_v4.6.x_win64.exe"`, or open the `godot` folder in the Godot 4.6 editor
+(Import, then **F5**) while the backend is running. Use the standard Godot build, not the .NET one.
+
+**Requirements:** Windows 10/11, any GPU that supports OpenGL 3.3 (the game uses Godot's Compatibility renderer, so integrated graphics work),
+about 1 GB of free disk space, and internet only for the downloads in steps 1 and 2.
+
+**macOS / Linux:** download Godot 4.6 for your system from https://godotengine.org/download, then run the backend by hand
+(`uv venv --python 3.12 backend/.venv`, `uv pip install --python backend/.venv/bin/python -r backend/requirements.txt`,
+then `cd backend && .venv/bin/python -m uvicorn app.main:app --port 8000`) and start the game with
+`godot --path godot` (run `godot --headless --path godot --import` once first). Only Windows has been tested.
 
 ## Quick start: download and run (Windows)
 
@@ -38,15 +100,15 @@ This is the Python backend: it simulates the race and runs the strategy optimize
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File run.ps1 web      # browser app: open http://localhost:5173
-powershell -ExecutionPolicy Bypass -File run.ps1 godot    # Godot 3D game (needs Godot 4.6, see below)
+powershell -ExecutionPolicy Bypass -File run.ps1 godot    # Godot 3D game (needs the backend running; or use `run.ps1 play`)
 ```
 
 **4. Play:** press **Start**. Click the tyre button at the bottom (or press `C`) for the race console. In
 **Events & controls** you can trigger rain or a safety car and watch the optimizer replan and box the car.
 
-**Godot notes.** `run.ps1 godot` looks for Godot in your Downloads, Desktop and `Develop` folders. If it is
-elsewhere: `run.ps1 godot -Godot "C:\path\to\Godot_v4.6.x_win64.exe"`, or open `godot\project.godot` in the Godot
-editor and press **F5**. Godot is a single `.exe`, there is nothing to install.
+**Godot notes.** The full Godot walkthrough (including a new laptop) is in "Run the Godot game on a new laptop" above.
+`run.ps1 godot` looks in `tools\godot` (from `run.ps1 get-godot`), your Downloads, Desktop and `Develop` folders; otherwise pass
+`-Godot "C:\path\to\Godot_v4.6.x_win64.exe"`.
 
 **Run the AI benchmark yourself** (100 paired races, about 30 seconds):
 
@@ -256,6 +318,77 @@ for how to run it, the controls, credits and `godot/check.ps1`.
 
 ![Godot broadcast camera](docs/screenshots/godot-broadcast-live.png)
 
+## Does the strategy actually win the race?
+
+The live game races the strategy car (ADP) against seven rule-based rivals. `python -m app.victory --trials 40 --circuit spa` runs a full-field
+experiment: for each seed the **same hidden world** and the **same rivals**, once with the optimizer driving the strategy car and once with the
+fixed-stint baseline. Nothing in the model is changed; the two strategies simply race the same field. Results (simulated, not real-world):
+
+<!-- VICTORY_TABLE -->
+| circuit | strategy car | scenario | wins: optimizer | wins: fixed stint | mean pos: optimizer | mean pos: fixed | time saved |
+|---|---|---|---|---|---|---|---|
+| silverstone | fast car (-0.55 s) | dry | **75%** | 82% | 1.25 | 1.18 | -0.7 s |
+| silverstone | fast car (-0.55 s) | rain | **98%** | 0% | 1.02 | 5.60 | +45.2 s |
+| silverstone | fast car (-0.55 s) | safety car | **88%** | 88% | 1.12 | 1.12 | -0.3 s |
+| silverstone | fast car (-0.55 s) | rain and sc | **98%** | 0% | 1.02 | 4.10 | +35.8 s |
+| silverstone | mid-field car (0.00 s) | dry | **0%** | 0% | 4.22 | 4.05 | -0.7 s |
+| silverstone | mid-field car (0.00 s) | rain | **68%** | 0% | 1.32 | 6.85 | +45.2 s |
+| silverstone | mid-field car (0.00 s) | safety car | **0%** | 0% | 2.88 | 2.88 | -0.3 s |
+| silverstone | mid-field car (0.00 s) | rain and sc | **70%** | 0% | 1.30 | 5.92 | +35.8 s |
+| spa | fast car (-0.55 s) | dry | **75%** | 78% | 1.25 | 1.23 | -0.0 s |
+| spa | fast car (-0.55 s) | rain | **98%** | 0% | 1.02 | 5.85 | +41.8 s |
+| spa | fast car (-0.55 s) | safety car | **78%** | 88% | 1.30 | 1.12 | -1.1 s |
+| spa | fast car (-0.55 s) | rain and sc | **98%** | 0% | 1.02 | 6.40 | +47.3 s |
+| spa | mid-field car (0.00 s) | dry | **0%** | 0% | 3.80 | 3.88 | -0.0 s |
+| spa | mid-field car (0.00 s) | rain | **18%** | 0% | 1.90 | 6.78 | +41.8 s |
+| spa | mid-field car (0.00 s) | safety car | **0%** | 0% | 3.02 | 2.83 | -1.1 s |
+| spa | mid-field car (0.00 s) | rain and sc | **75%** | 0% | 1.25 | 7.22 | +47.3 s |
+| monza | fast car (-0.55 s) | dry | **72%** | 88% | 1.27 | 1.12 | -0.6 s |
+| monza | fast car (-0.55 s) | rain | **100%** | 0% | 1.00 | 3.73 | +34.6 s |
+| monza | fast car (-0.55 s) | safety car | **92%** | 92% | 1.07 | 1.07 | -0.2 s |
+| monza | fast car (-0.55 s) | rain and sc | **88%** | 0% | 1.12 | 4.85 | +29.8 s |
+| monza | mid-field car (0.00 s) | dry | **0%** | 0% | 4.47 | 4.38 | -0.6 s |
+| monza | mid-field car (0.00 s) | rain | **68%** | 0% | 1.35 | 6.03 | +34.6 s |
+| monza | mid-field car (0.00 s) | safety car | **0%** | 0% | 2.88 | 2.88 | -0.2 s |
+| monza | mid-field car (0.00 s) | rain and sc | **18%** | 0% | 2.05 | 6.62 | +29.8 s |
+| zandvoort | fast car (-0.55 s) | dry | **82%** | 88% | 1.18 | 1.12 | +0.3 s |
+| zandvoort | fast car (-0.55 s) | rain | **100%** | 0% | 1.00 | 3.92 | +31.4 s |
+| zandvoort | fast car (-0.55 s) | safety car | **92%** | 92% | 1.07 | 1.07 | -0.2 s |
+| zandvoort | fast car (-0.55 s) | rain and sc | **88%** | 0% | 1.12 | 5.20 | +30.3 s |
+| zandvoort | mid-field car (0.00 s) | dry | **0%** | 0% | 4.30 | 4.53 | +0.3 s |
+| zandvoort | mid-field car (0.00 s) | rain | **42%** | 0% | 1.68 | 6.10 | +31.4 s |
+| zandvoort | mid-field car (0.00 s) | safety car | **0%** | 0% | 2.88 | 2.88 | -0.2 s |
+| zandvoort | mid-field car (0.00 s) | rain and sc | **2%** | 0% | 2.23 | 6.92 | +30.3 s |
+
+(Each row: 40 seeds, identical hidden world and the same 7 rule-based rivals for both strategies.)
+<!-- /VICTORY_TABLE -->
+
+What this shows, and what it does not:
+* **When the weather or a safety car gives the strategy something to exploit (rain, rain + safety car), the optimizer wins the race about 7 times in 10 with a
+  mid-field car and almost every time with an equally fast car, where the fixed-stint plan almost never does.** The gain is 35 to 50 s per race: the optimizer
+  switches to wet tyres and back at the right moment; the rule-based rivals and the fixed plan react late.
+* **In a dry race, or with only a safety car, the optimizer does not beat the fixed-stint plan** (it is within about a second, sometimes slightly behind, because it hedges against futures that do
+  not happen). A strategy cannot turn a slower car into a winner on pure pace: the mid-field car does not win dry races.
+* The "fast car" rows give the strategy car the pace of the quickest rival (offset -0.55 s vs -0.45 s) so that strategy, not machinery, decides the result.
+
+**Demos** (pick them in the game's DEMO dropdown, or `config` in the web console; `POST /api/race/reset {"config_name": ...}`). All use seed 100, scripted events and run on any circuit:
+
+| demo | what happens | result on Silverstone |
+|---|---|---|
+| `demo_win_rain` | fast car, heavy rain from lap 8 for 7 laps | strategy car wins; the fixed plan would finish 7th, 51 s slower |
+| `demo_win_chaos` | fast car, rain then a safety car | strategy car wins; fixed plan 4th, 29 s slower |
+| `demo_underdog_rain` | mid-field car (pace 0.0), rain | strategy car wins from the middle of the pack; fixed plan 7th |
+| `demo_win_sc` | fast car, safety car on lap 10 | wins; same as the fixed plan |
+| `demo_win_dry` | fast car, dry | wins; the optimizer only ties the fixed plan |
+| `demo_scripted` / `demo` | original demos (mid-field car) | unchanged |
+
+## Godot vegetation (supplied tree and grass models)
+The Godot client grows about 30,000 trees from 7 supplied realistic models and about 110,000 grass clumps (3 large, 3 medium, 1 bush; textured, alpha-cut leaves) and 4 grass clumps around every circuit, in forest
+stands with a 46 m clearance from the track edge, away from the pit lane, grandstands and the outside of corners. They are optimised from the 55 MB originals in
+`assets/` to about 5 MB by `scripts/godot_assets/build_vegetation.mjs` (run `npm install @gltf-transform/core @gltf-transform/extensions meshoptimizer sharp` next to it first), and drawn as
+chunked MultiMeshes with a visibility range. Press **Q** to change quality: grass is off in `performance`, half in `balanced`, full in `high`/`ultra`; trees cast shadows only in `high`/`ultra`
+(about 190 fps in chase on the RTX 3050 vs 340 in `balanced`). The licence of these two models is unknown (see ASSET_CREDITS.md).
+
 ## Interface layout
 
 A deep maroon-red racing identity. The 3D circuit fills the whole window under a compact single-row race header
@@ -294,10 +427,41 @@ walls, grandstands, pit garages, lamp posts, fences, marshal posts, trees and fi
 Weather is driven by the simulation's wetness: HDRI cross-fade, fog, darker/shinier asphalt with puddles, rain streaks and
 car spray. Visuals never change lap times, fuel, wear or benchmarks.
 
-* Cameras: 3D view, Top-down, Follow car, Low chase, Corner (trackside, picks the next corner), Overview (reset).
+* Cars: the supplied F1 model (optimised by `scripts/f1car`, hi/lo detail switched by camera distance) in fictional team colours with
+  centre stripe, number decals, wheel spin from real distance, steering from track curvature, pitch/roll, brake lights and compound-coloured wheel
+  rings. The Kenney cars are the safety car and the automatic fallback if the F1 model fails to load.
+* Motion: cars brake for corners and accelerate out (a curvature-based speed profile redistributes distance *within* each lap; lap boundaries, lap
+  times, gaps, fuel and wear are untouched), launch from the grid, decelerate into and accelerate out of the pit box. Playback is 12 s per lap at 1x
+  (speeds 0.25x to 16x).
+* Race moments tied to real state: five start lights with the clock held on the grid, a waving chequered flag + confetti when the leader finishes,
+  pit crew (two pooled crews of six) that walks out when a car enters the lane, works only while it is stationary in its box and cheers on release,
+  crowd on the grandstand seats that cheers at lights-out, safety car and the flag, rubber marks in the real braking zones that build with laps and
+  wash away in the wet.
+* Level of detail: cars (hi/lo model by distance), props and crowd culled by camera distance/height, per-preset counts of trees, crowd, tyre walls, rain and spray.
+* Cameras: 3D view, Top-down, Follow car, Low chase, Corner (trackside, picks the next corner), Overview (reset). Follow/chase pull back and to the
+  side while the followed car is being serviced.
 * Quality selector (top right of the view): performance / balanced (default) / high / ultra change DPR, shadow resolution,
   tree/tyre-wall/spray/rain counts, reflections and fog. `?quality=low` forces performance. `?cam=chase` opens in a camera mode.
 * If a model or texture fails to load the affected element is skipped or replaced with a simple primitive; the race still runs.
+
+## Circuits, vegetation and the wheel button
+* **Four circuits** (Silverstone, Spa-Francorchamps, Monza, Zandvoort): click **TRACK** in the header. Each has its own measured geometry from the TUM
+  racetrack-database (LGPL-3.0, OSM-derived), a preview drawn from that geometry, and its own simulation inputs. Switching during a race asks for
+  confirmation and resets the race (new engines, lap history, strategy, baseline, rivals); the 3D venue, camera, cars, pit lane and the Godot client follow.
+  The backend owns the selection (`state.circuit_id`, `POST /api/race/reset {"circuit": "spa"}`, `GET /api/circuits`).
+* **What is circuit-dependent** (`backend/app/tracks.py`, derived from geometry, nothing typed in per circuit): base lap time (curvature-limited speed profile,
+  calibrated so Silverstone keeps its 90 s), fuel burn and starting load (lap length), tyre wear (length x lateral load), pit-lane time loss (lane length vs mean
+  speed). The fuel/tyre/weather/safety-car *models* are unchanged. Lap times are relative model estimates, not real lap times.
+* **Not available / approximate:** elevation (every circuit is flat), surveyed pit lanes (a synthetic lane at the start straight on every circuit), official sector
+  splits (equal thirds), official turn numbering (corners are detected from curvature; published turn counts are shown for reference), start line (first dataset point).
+  Landmark names (La Source, Eau Rouge, Parabolica...) are inferred from the order of detected corners.
+* **Benchmarks are per circuit** (`results/latest_<circuit>.json`; `python -m app.evaluation --circuit spa`); the Analytics tab shows the selected circuit's own results only.
+* **Vegetation:** up to 42,000 instanced trees and 24,000 bushes (13 tree and 5 bush models from the CC0 Kenney Nature Kit) in forest clusters, with clearance from
+  the track edge/runoff/barriers, the pit lane, grandstands and open sight-line zones on the outside of corners. Draw calls are bounded by chunking (450 m) with
+  frustum culling and a distance LOD (detailed models near the camera, 20-60 triangle stand-ins beyond). The **Vegetation** selector (low / medium / high / ultra / auto)
+  is separate from **Graphics**.
+* **Wheel button:** a real 3D Formula-style wheel (slick tyre with red compound band, vented metal wheel face, red lock nut) in its own small WebGL canvas that ignores the pointer;
+  it floats, spins, scales on hover, and still opens/closes the console.
 
 ## Known limitations and unverified items
 
@@ -305,10 +469,10 @@ car spray. Visuals never change lap times, fuel, wear or benchmarks.
   position, pit lane, sector splits and corner numbering are approximations (see `data/README.md`). No elevation.
 * Rival cars are rule-based AI with no on-track interaction (no overtaking or blocking physics).
 * The optimizer searches at most two further stops; the safety-car pit discount is a multiplicative simplification.
-* Not done in the visual upgrade: pit-crew characters (models downloaded, not wired in), crowd on the grandstands, a
-  start-light countdown and chequered-flag effect, curvature-based braking/acceleration speed profile (cars follow the
-  authoritative lap times with smooth interpolation only), skid marks (no modeled cause), LOD levels. Cars are low-poly
-  Kenney models, not detailed F1 models. Screenshots were taken in headless Chrome with software GL (SwiftShader).
+* Visual limits: the crowd and pit crew are blocky low-poly figures; crew members do not carry wheels (they animate in place and the new
+  compound appears on the car when the backend's stop completes); the speed profile is a visual model (it is not the physics in `physics.py`);
+  rubber marks are decals in the braking zones, not simulated tyre contact. The F1 model's licence is unverified (see ASSET_CREDITS.md).
+  Screenshots were taken in headless Chrome with software GL (SwiftShader) so frame rate is unmeasured.
 * The 3D scene uses enlarged cars. **Frame rate was not measured**: the preview browser used for
   development throttles animation when its pane is hidden, so only functional behaviour was verified there.
   Tested on one Intel UHD integrated GPU in that preview only; not tested on other browsers or touch devices.

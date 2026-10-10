@@ -27,8 +27,8 @@ describe("circuit data", () => {
     const i0 = c.pitAt(0), i1 = c.pitAt(c.pit.length);
     const mainIn = c.pointAt(1 - c.data.pit_lane.entry_distance_m / c.length);
     const mainOut = c.pointAt(c.data.pit_lane.exit_distance_m / c.length);
-    expect(Math.hypot(i0.x - mainIn.x, i0.y - mainIn.y)).toBeLessThan(8);
-    expect(Math.hypot(i1.x - mainOut.x, i1.y - mainOut.y)).toBeLessThan(8);
+    expect(Math.hypot(i0.x - mainIn.x, i0.y - mainIn.y)).toBeLessThan(3);
+    expect(Math.hypot(i1.x - mainOut.x, i1.y - mainOut.y)).toBeLessThan(3);
   });
 });
 
@@ -84,4 +84,78 @@ describe("placeCar", () => {
     const p = placeCar(L, 0, o);
     expect(p.total).toBeLessThan(0);
   });
+});
+
+import { speedProfileFor } from "../speedProfile";
+
+describe("speed profile", () => {
+  const prof = speedProfileFor(c);
+  it("keeps exact endpoints and is monotonic (lap boundaries stay authoritative)", () => {
+    expect(prof.warp(0, 1, 0)).toBeCloseTo(0, 6);
+    expect(prof.warp(0, 1, 1)).toBeCloseTo(1, 3);
+    expect(prof.warp(0, 0.7, 1)).toBeCloseTo(0.7, 3);
+    let prev = -1;
+    for (let u = 0; u <= 1.0001; u += 0.005) { const f = prof.warp(0, 1, u); expect(f).toBeGreaterThanOrEqual(prev); prev = f; }
+  });
+  it("is slower in the tightest corner than on the fastest straight, with a believable range", () => {
+    let lo = 1e9, hi = 0;
+    for (let i = 0; i < 400; i++) { const v = prof.speedAt(i / 400); lo = Math.min(lo, v); hi = Math.max(hi, v); }
+    expect(hi / lo).toBeGreaterThan(1.8);
+    expect(prof.peakOverMean).toBeLessThan(1.65);
+  });
+  it("cars still finish each lap exactly when the data says, and never move backwards", () => {
+    const o = placeOptsFor(c, 0.8, 5, 0, 8);
+    const L = laps(4, 92, [2]);
+    let prev = -1;
+    for (let t = 0.05; t < L[3].elapsed_s; t += 0.05) {
+      const total = placeCar(L, t, o).total;
+      expect(total).toBeGreaterThanOrEqual(prev - 1e-9);
+      prev = total;
+    }
+    expect(placeCar(L, L[1].elapsed_s + 0.001, o).lapNo).toBe(3);
+  });
+});
+
+import { listCircuits } from "../circuit";
+
+describe.each(listCircuits().map((d) => d.id))("circuit %s", (id) => {
+  const cc = getCircuit(id);
+  const oo = placeOptsFor(cc, 0.8, 5, 0, 8);
+  const LL = laps(6, 92, [3]);
+  it("is a closed loop whose length matches the published length within 2%", () => {
+    expect(Math.abs(cc.length - cc.data.official_reference.length_m) / cc.data.official_reference.length_m).toBeLessThan(0.02);
+    const a = cc.pointAt(0), b = cc.pointAt(0.9999);
+    expect(Math.hypot(a.x - b.x, a.y - b.y)).toBeLessThan(15);
+  });
+  it("pit lane joins the circuit's own centreline at entry and exit", () => {
+    const i0 = cc.pitAt(0), i1 = cc.pitAt(cc.pit.length);
+    const mainIn = cc.pointAt(1 - cc.data.pit_lane.entry_distance_m / cc.length);
+    const mainOut = cc.pointAt(cc.data.pit_lane.exit_distance_m / cc.length);
+    expect(Math.hypot(i0.x - mainIn.x, i0.y - mainIn.y)).toBeLessThan(3);
+    expect(Math.hypot(i1.x - mainOut.x, i1.y - mainOut.y)).toBeLessThan(3);
+  });
+  it("cars follow this circuit: no teleports (even through the pit lane), laps end at this circuit's line", () => {
+    const end = LL[LL.length - 1].elapsed_s;
+    let prev = poseOf(cc, placeCar(LL, 0.0001, oo)), maxStep = 0;
+    for (let t = 0.05; t < end; t += 0.05) {
+      const p = poseOf(cc, placeCar(LL, t, oo));
+      maxStep = Math.max(maxStep, Math.hypot(p.x - prev.x, p.y - prev.y));
+      prev = p;
+    }
+    expect(maxStep).toBeLessThan(6.5);
+    const line = cc.pointAt(0);
+    const p = poseOf(cc, placeCar(LL, LL[1].elapsed_s - 1e-3, oo));
+    expect(Math.hypot(p.x - line.x, p.y - line.y)).toBeLessThan(10);
+  });
+  it("has a believable speed profile", () => {
+    const prof = speedProfileFor(cc);
+    expect(prof.peakOverMean).toBeLessThan(1.7);
+    expect(prof.warp(0, 1, 1)).toBeCloseTo(1, 3);
+  });
+});
+
+it("circuits are genuinely different layouts, not recoloured copies", () => {
+  const sigs = listCircuits().map((d) => `${Math.round(d.length_m)}|${d.corners.length}`);
+  expect(new Set(sigs).size).toBe(listCircuits().length);
+  expect(listCircuits().length).toBeGreaterThanOrEqual(3);
 });

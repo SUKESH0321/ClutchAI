@@ -1,10 +1,12 @@
 """Build a frontend circuit file from a TUM FTM racetrack-database CSV.
 
 Usage (from repo root):
-    backend/.venv/Scripts/python.exe -I scripts/build_circuit.py data/raw/Silverstone.csv silverstone "Silverstone Grand Prix Circuit" "Northamptonshire, UK"
+    backend/.venv/Scripts/python.exe -I scripts/build_circuit.py --all           # every circuit in scripts/circuits_catalog.json
+    backend/.venv/Scripts/python.exe -I scripts/build_circuit.py spa             # one circuit
 
 Input columns: x_m, y_m, w_tr_right_m, w_tr_left_m (centerline + half-widths, local metres).
-Output: frontend/src/data/circuits/<id>.json (resampled to equal arc-length spacing).
+Output: data/circuits/<id>.json (resampled to equal arc-length spacing). That directory is the single source of truth:
+the backend reads it for simulation parameters, the web app imports it for rendering and previews, the Godot client has a copy.
 
 Everything not present in the source (start/finish location, pit lane, sectors, corner numbers) is
 derived here and flagged as approximate in the output metadata.
@@ -58,8 +60,13 @@ def smoothstep(t: np.ndarray) -> np.ndarray:
     return t * t * (3 - 2 * t)
 
 
-def main() -> None:
-    csv_path, cid, name, place = Path(sys.argv[1]), sys.argv[2], sys.argv[3], sys.argv[4]
+CATALOG = Path(__file__).with_name("circuits_catalog.json")
+OUT_DIR = Path("data/circuits")
+
+
+def build(cid: str, meta: dict) -> None:
+    csv_path = Path("data/raw") / meta["csv"]
+    name, place = meta["name"], f'{meta["location"]}, {meta["country"]}'
     raw = load(csv_path)
     gap = float(np.hypot(*(raw[0, :2] - raw[-1, :2])))
     pts, length = resample_closed(raw, N)
@@ -103,6 +110,7 @@ def main() -> None:
     # pit lane: parallel lane on the infield side, offset ramps in/out, box at the start line
     d_in, d_out, off_max, ramp_in, ramp_out = 100.0, 270.0, 22.0, 35.0, 60.0
     nin, nout = int(d_in / step), int(d_out / step)
+    d_in, d_out = nin * step, nout * step     # actual lane extent: whole samples, so the lane ends sit exactly on the centreline
     idx = np.arange(-nin, nout + 1)
     s_rel = idx * step
     off = off_max * smoothstep((s_rel + d_in) / ramp_in) * smoothstep((d_out - s_rel) / ramp_out)
@@ -121,6 +129,17 @@ def main() -> None:
         gaps.append(((b["index"] - a["index"]) % N, a, b))
     gaps.sort(key=lambda g: -g[0])
     landmarks = []
+    by_n = {c["n"]: c for c in corners}
+    for spec in meta.get("landmarks", []):          # circuits other than Silverstone: explicit, documented specs
+        if "corner" in spec and spec["corner"] in by_n:
+            landmarks.append({"name": spec["name"], "index": by_n[spec["corner"]]["index"], "kind": "corner"})
+        elif "straight" in spec:
+            a, b = (by_n.get(k) for k in spec["straight"])
+            if a and b:
+                ln = (b["index"] - a["index"]) % N
+                landmarks.append({"name": spec["name"], "index": int((a["index"] + ln // 2) % N), "kind": "straight", "length_m": round(ln * step)})
+    if meta.get("landmarks"):
+        landmarks.append({"name": "Start / Finish straight", "index": 0, "kind": "straight"})
     if cid == "silverstone":
         for k, nm in zip((0, 1), ("Hangar Straight", "Wellington Straight")):
             ln, a, b = gaps[k]
@@ -134,7 +153,7 @@ def main() -> None:
         landmarks.append({"name": "Start / Finish straight", "index": 0, "kind": "straight"})
 
     out = {
-        "id": cid, "name": name, "location": place,
+        "id": cid, "name": name, "location": place, "country": meta["country"], "description": meta["description"],
         "length_m": round(length, 1), "point_count": N, "spacing_m": round(step, 3),
         "clockwise": bool(clockwise),
         "points": [[round(float(a), 2), round(float(b), 2)] for a, b in zip(x, y)],
@@ -147,8 +166,12 @@ def main() -> None:
         "pit_lane": {
             "points": [[round(a, 2), round(b, 2)] for a, b in pit],
             "entry_index_offset": -nin, "exit_index_offset": nout, "box_index_offset": 0,
-            "entry_distance_m": d_in, "exit_distance_m": d_out, "offset_m": off_max, "approximate": True,
+            "entry_distance_m": round(d_in, 3), "exit_distance_m": round(d_out, 3), "offset_m": off_max, "approximate": True,
+            "length_m": round(d_in + d_out, 1),
         },
+        # publicly published figures, shown for reference only: the simulation uses the measured geometry above
+        "official_reference": {"length_m": meta["official_length_m"], "turns": meta["official_turns"],
+                               "note": "Published circuit facts, not derived from the dataset."},
         "source": {
             "dataset": "TUMFTM/racetrack-database",
             "url": "https://github.com/TUMFTM/racetrack-database",
@@ -157,19 +180,27 @@ def main() -> None:
             "citation": "Technical University of Munich, Institute of Automotive Technology, racetrack-database",
         },
         "limitations": [
-            "Centerline and track widths come from the dataset; elevation is not available so the circuit is rendered flat.",
+            "Centerline and track widths come from the dataset; elevation is not available so the circuit is rendered and simulated flat.",
             "Start/finish line is taken as the first point of the dataset and is approximate.",
-            "Pit lane is synthesised as a lane parallel to the start/finish straight; it is not surveyed.",
+            "Pit lane is synthesised as a lane parallel to the start/finish straight (same construction at every circuit); it is not surveyed.",
             "Sector boundaries are equal thirds of the lap, not the official timing loops.",
-            "Corner numbers are detected from curvature (19 found; the official count differs) and are not official turn numbers. Landmark names (Abbey, Stowe, Club, Hangar and Wellington straights) are inferred from the corner sequence.",
+            f"Corner numbers are detected from curvature ({len(corners)} found; official turn count is {meta['official_turns']}) and are not official turn numbers. "
+            "Landmark names are inferred from the order of detected corners and straights.",
         ],
     }
-    dest = Path("frontend/src/data/circuits") / f"{cid}.json"
+    dest = OUT_DIR / f"{cid}.json"
     dest.parent.mkdir(parents=True, exist_ok=True)
     dest.write_text(json.dumps(out, separators=(",", ":")), encoding="utf-8")
-    print(f"source points {len(raw)}, closure gap {gap:.1f} m, length {length:.0f} m, "
-          f"{'clockwise' if clockwise else 'counter-clockwise'}, corners detected {len(corners)}, "
+    print(f"{cid}: source points {len(raw)}, closure gap {gap:.1f} m, length {length:.0f} m (official {meta['official_length_m']}), "
+          f"{'clockwise' if clockwise else 'counter-clockwise'}, corners detected {len(corners)} (official {meta['official_turns']}), "
           f"max curvature within 150 m of start {s0_straight:.5f} (1/m), wrote {dest} ({dest.stat().st_size // 1024} KB)")
+
+
+def main() -> None:
+    catalog = json.loads(CATALOG.read_text(encoding="utf-8"))
+    ids = list(catalog) if "--all" in sys.argv or len(sys.argv) < 2 else sys.argv[1:]
+    for cid in ids:
+        build(cid, catalog[cid])
 
 
 if __name__ == "__main__":

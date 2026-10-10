@@ -1,0 +1,10 @@
+{
+  "name": "f1car-build",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@gltf-transform/core": "^4.0.0",
+    "fbx2gltf": "^0.9.7-p1",
+    "meshoptimizer": "^0.22.0"
+  }
+}

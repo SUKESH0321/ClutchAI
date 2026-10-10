@@ -17,13 +17,15 @@ export interface LiveData {
   safetyCar: boolean;    // safety car on the lap currently on screen
   raceT: number;         // visual race clock (s)
   leaderTotal: number;   // leader progress in laps
+  totalLaps: number;
+  boxes: Map<string, { x: number; y: number; tx: number; ty: number }>;   // each car's pit-box pose (map frame)
   primaryPit: "none" | "in" | "stopped" | "out";
   startLights: number;   // 0 = off; 1..5 = lights lit; 6 = all out (race start)
   focus: { x: number; z: number };   // ground point the camera is looking at (for shadows)
   finished: boolean;
 }
 export const newLive = (): LiveData => ({
-  poses: new Map(), ghost: null, wetness: 0, wet: 0, safetyCar: false, raceT: 0, leaderTotal: 0,
+  poses: new Map(), ghost: null, wetness: 0, wet: 0, safetyCar: false, raceT: 0, leaderTotal: 0, totalLaps: 0, boxes: new Map(),
   primaryPit: "none", startLights: 0, focus: { x: 0, z: 0 }, finished: false,
 });
 

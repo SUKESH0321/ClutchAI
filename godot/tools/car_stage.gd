@@ -28,7 +28,7 @@ func _init() -> void:
 	floor_mi.material_override = fm
 	root.add_child(floor_mi)
 
-	var models := ["raceCarRed", "raceCarOrange", "raceCarGreen", "raceCarWhite"]
+	var models := ["f1", "f1", "f1", "raceCarOrange"]
 	var colors := [Color("#ff3b47"), Color("#38d9f5"), Color("#22d37a"), Color("#b28cff")]
 	for k in models.size():
 		var cv := CarView.new()

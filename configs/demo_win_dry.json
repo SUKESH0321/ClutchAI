@@ -1,0 +1,7 @@
+{
+  "name": "demo_win_dry",
+  "seed": 100,
+  "random_events": false,
+  "primary_pace_s": -0.55,
+  "scripted_events": []
+}

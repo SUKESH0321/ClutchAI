@@ -15,6 +15,14 @@ var pit_glow_mat: StandardMaterial3D
 var sc_glow_mat: StandardMaterial3D
 var _rng := RandomNumberGenerator.new()
 var _label_nodes: Array = []     # [Label3D, base pixel_size]
+var _corner_label_nodes: Array = []
+var _tree_nodes: Array = []
+var _prop_nodes: Array = []
+var _shadow_pref: bool = true
+var _applied_wet: float = -1.0
+var _label_k: float = -1.0
+var vegetation: Vegetation
+var _veg_exclusions: Array = []
 
 
 func build(c: Circuit) -> void:
@@ -27,7 +35,11 @@ func build(c: Circuit) -> void:
 	_pit_complex()
 	_start_line()
 	_scenery()
+	_vegetation()
 	_labels()
+	for ch in get_children():
+		if ch is MultiMeshInstance3D:
+			(_tree_nodes if str(ch.name).begins_with("trees_") else _prop_nodes).append(ch)
 
 
 # ------------------------------------------------------------------ environment
@@ -129,7 +141,7 @@ func _merge(meshes: Array) -> ArrayMesh:
 func _ground() -> void:
 	var plane := PlaneMesh.new()
 	plane.size = Vector2(9000, 9000)
-	var g := _mat(Color.WHITE, _noise_tex(Color("#6a9a4c"), 0.14, Color("#86b35c"), 0.16), 1.0)
+	var g := _mat(Color.WHITE, _noise_tex(Color("#27521d"), 0.16, Color("#386628"), 0.18), 1.0)
 	g.uv1_scale = Vector3(900, 900, 1)
 	var mi := _mesh_node(plane, g)
 	mi.position.y = -0.3
@@ -142,9 +154,10 @@ func _ground() -> void:
 	for i in n:
 		o0.append(-(circuit.hr[i] + 55.0))
 		o1.append(circuit.hl[i] + 55.0)
-	var mown := _mat(Color.WHITE, _noise_tex(Color("#70a050"), 0.1, Color("#86b560"), 0.1), 1.0)
+	var mown := _mat(Color.WHITE, _noise_tex(Color("#2a561f"), 0.14, Color("#3b6a2a"), 0.14), 1.0)
 	mown.uv1_scale = Vector3(1, 1, 1)
-	_mesh_node(Circuit.strip(S, o0, o1, -0.1, true, PackedColorArray(), 10.0), mown)
+	# (the mown ribbon mesh rendered brown under the warm light; the dark green ground plane is used everywhere instead)
+	# _mesh_node(Circuit.strip(S, o0, o1, -0.1, true, PackedColorArray(), 10.0), mown)
 
 
 func _track_surfaces() -> void:
@@ -354,7 +367,8 @@ func _scenery() -> void:
 	var large: Array = []
 	var small: Array = []
 	var tries := 0
-	while large.size() + small.size() < 700 and tries < 6000:
+	var tree_budget := 0 if Vegetation.available() else 700      # the supplied realistic trees (vegetation.gd) replace the Kenney scatter
+	while large.size() + small.size() < tree_budget and tries < 6000:
 		tries += 1
 		var px := minx - 450.0 + _rng.randf() * (maxx - minx + 900.0)
 		var py := miny - 450.0 + _rng.randf() * (maxy - miny + 900.0)
@@ -367,8 +381,12 @@ func _scenery() -> void:
 			large.append(Assets.instance_xf("treeLarge", xf, Vector3(s, s * (0.9 + _rng.randf() * 0.4), s)))
 		else:
 			small.append(Assets.instance_xf("treeSmall", xf, Vector3(s * 1.2, s * 1.2, s * 1.2)))
-	add_child(Assets.multimesh("treeLarge", large))
-	add_child(Assets.multimesh("treeSmall", small))
+	var tl := Assets.multimesh("treeLarge", large)
+	tl.name = "trees_large"
+	add_child(tl)
+	var ts := Assets.multimesh("treeSmall", small)
+	ts.name = "trees_small"
+	add_child(ts)
 
 	# grandstands
 	var stand := func(idx: int, side_left: bool, model: String, off: float) -> void:
@@ -384,6 +402,7 @@ func _scenery() -> void:
 		node.transform = _facing_z(pos, vx, vz)
 		node.scale = Vector3(1.0, 0.8, 1.0)
 		add_child(node)
+		_veg_exclusions.append(Vector3(pos.x, -pos.z, 70.0))
 	stand.call(circuit.n - 16, true, "grandStandCovered", 30.0)
 	stand.call(circuit.n - 6, true, "grandStandCovered", 30.0)
 	stand.call(10, true, "grandStandAwning", 30.0)
@@ -414,6 +433,13 @@ func _scenery() -> void:
 		j += 41
 	add_child(Assets.multimesh("lightPostLarge", posts))
 	add_child(Assets.multimesh("billboardLow", boards))
+
+
+func _vegetation() -> void:
+	vegetation = Vegetation.new()
+	vegetation.name = "vegetation"
+	add_child(vegetation)
+	vegetation.build(circuit, _veg_exclusions)
 
 
 func _labels() -> void:
@@ -451,17 +477,22 @@ func _labels() -> void:
 		lab2.position = p
 		add_child(lab2)
 		_label_nodes.append([lab2, lab2.pixel_size])
+		_corner_label_nodes.append(lab2)
 
 
 # ------------------------------------------------------------------ dynamic state
 func scale_labels(fov_deg: float) -> void:
 	var k := clampf(fov_deg / 45.0, 0.1, 1.5)
+	if absf(k - _label_k) < 0.004:
+		return
+	_label_k = k
 	for e in _label_nodes:
 		(e[0] as Label3D).pixel_size = float(e[1]) * k
 
 func set_wetness(w: float) -> void:
-	if road_mat == null:
+	if road_mat == null or absf(w - _applied_wet) < 0.002:
 		return
+	_applied_wet = w
 	var dry := Color.WHITE
 	var wet := Color(0.5, 0.52, 0.58)
 	road_mat.albedo_color = dry.lerp(wet, clampf(w * 1.4, 0.0, 1.0))
@@ -485,3 +516,34 @@ func set_pit_highlight(mode: int, t: float) -> void:
 			pit_glow_mat.albedo_color = Color(0.18, 0.88, 0.54, 0.5)
 		_:
 			pit_glow_mat.albedo_color.a = 0.0
+
+
+# ------------------------------------------------------------------ quality
+func apply_quality(P: Dictionary) -> void:
+	_shadow_pref = bool(P["shadows"])
+	sun.shadow_enabled = _shadow_pref
+	var splits := int(P["splits"])
+	sun.directional_shadow_mode = DirectionalLight3D.SHADOW_ORTHOGONAL if splits <= 1 else (DirectionalLight3D.SHADOW_PARALLEL_2_SPLITS if splits == 2 else DirectionalLight3D.SHADOW_PARALLEL_4_SPLITS)
+	sun.directional_shadow_max_distance = maxf(50.0, float(P["shadow_dist"]))
+	RenderingServer.directional_shadow_atlas_set_size(int(P["shadow_size"]), true)
+	env.glow_enabled = bool(P["glow"])
+	env.fog_enabled = bool(P["fog"])
+	var frac := float(P["trees"])
+	for t in _tree_nodes:
+		var mm := (t as MultiMeshInstance3D).multimesh
+		if mm != null:
+			mm.visible_instance_count = int(round(mm.instance_count * frac))
+		(t as MultiMeshInstance3D).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON if bool(P["props_shadows"]) else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	for p in _prop_nodes:
+		(p as MultiMeshInstance3D).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON if bool(P["props_shadows"]) else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	for l in _corner_label_nodes:
+		(l as Label3D).visible = bool(P["corner_labels"])
+	if vegetation != null:
+		vegetation.apply_quality(frac, float(P.get("grass", 1.0)), bool(P["props_shadows"]))
+
+
+## Shadows only matter near the cars: switch the sun's shadow pass off while the camera is far above the circuit.
+func update_shadow_for_camera(cam_height: float) -> void:
+	var want := _shadow_pref and cam_height < 420.0
+	if sun.shadow_enabled != want:
+		sun.shadow_enabled = want

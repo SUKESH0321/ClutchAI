@@ -1,16 +1,17 @@
 extends Node3D
-## Impossible Pit Stop 3D: native Godot client. All race state comes from the Python backend;
+## ClutchAI 3D: native Godot client. All race state comes from the Python backend;
 ## this scene only turns authoritative lap timing into motion (see race_clock.gd).
 
 enum Cam { CHASE, BROADCAST, TOP, ORBIT, HOOD }
 const CAM_NAMES := ["Chase", "Broadcast", "Top-down", "Orbit", "Hood"]
 
-const RIVAL_MODELS := ["raceCarOrange", "raceCarGreen", "raceCarWhite", "raceCarWhite", "raceCarOrange", "raceCarGreen", "raceCarWhite"]
+const SECONDARY := ["#1d1f26", "#f1f1ee", "#2a2f3a", "#e8e3da", "#16181d", "#d9dde3", "#222630", "#f4efe6"]
 
 signal camera_mode_changed(mode: int)
 signal selection_changed(car_id: String)
 
 var circuit: Circuit
+var circuit_id: String = "silverstone"
 var world: World
 var clock := RaceClock.new()
 var state: Dictionary = {}
@@ -50,10 +51,30 @@ var _burst_every: int = 20
 var _burst_count: int = 0
 var _force_wet: float = -1.0
 var _frame: int = 0
+var _dt: float = 0.016
+var _dyn: Dictionary = {}            # id -> {x, y, t, v, b}: per-car motion for wheels and brake lights
+var _bl_cache: Array = []            # baseline laps, rebuilt only when a new state arrives
+var _last_fov: float = -1.0
+var _applied_wet: float = -1.0
+var quality_level: String = ""
+var _auto_dropped: bool = false
+var _fps_ema: float = 60.0
+var _slow_s: float = 0.0
+var _scale_lock: float = 0.0
+var _fps_label: Label
+var _fps_text_t: float = 0.0
+var _bench_s: float = 0.0
+var _bench_acc: Array = []
+var _bench_t: float = 0.0
+var _forced_quality: String = ""
+var _no_adapt: bool = false
 
 
 func _ready() -> void:
-	circuit = Circuit.load_from("res://data/silverstone.json")
+	circuit_id = str(Backend.state.get("circuit_id", "silverstone"))
+	if not FileAccess.file_exists("res://data/%s.json" % circuit_id):
+		circuit_id = "silverstone"
+	circuit = Circuit.load_from("res://data/%s.json" % circuit_id)
 	world = World.new()
 	add_child(world)
 	world.build(circuit)
@@ -76,6 +97,99 @@ func _ready() -> void:
 	if not Backend.state.is_empty():
 		_on_state(Backend.state)
 	_parse_args()
+	_make_fps_label()
+	apply_quality(_forced_quality if _forced_quality != "" else Quality.default_level())
+
+
+func _make_fps_label() -> void:
+	var layer := CanvasLayer.new()
+	layer.layer = 60
+	add_child(layer)
+	_fps_label = Label.new()
+	_fps_label.anchor_left = 1.0
+	_fps_label.anchor_right = 1.0
+	_fps_label.anchor_top = 1.0
+	_fps_label.anchor_bottom = 1.0
+	_fps_label.offset_left = -330.0
+	_fps_label.offset_right = -12.0
+	_fps_label.offset_top = -26.0
+	_fps_label.offset_bottom = -6.0
+	_fps_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	_fps_label.add_theme_font_size_override("font_size", 12)
+	_fps_label.add_theme_color_override("font_color", Color(1, 1, 1, 0.55))
+	_fps_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	layer.add_child(_fps_label)
+
+
+## Apply a quality preset to the viewport, the world and every car.
+func apply_quality(level: String) -> void:
+	if not Quality.PRESETS.has(level):
+		return
+	quality_level = level
+	var P: Dictionary = Quality.PRESETS[level]
+	var vp := get_viewport()
+	vp.msaa_3d = Quality.msaa_enum(int(P["msaa"]))
+	_scale_lock = 6.0
+	world.apply_quality(P)
+	for cv in _all_car_views():
+		cv.set_quality(float(P["lod_m"]), bool(P["car_shadows"]))
+
+
+func _all_car_views() -> Array:
+	var out: Array = cars.values()
+	if ghost != null:
+		out.append(ghost)
+	if safety_car != null:
+		out.append(safety_car)
+	return out
+
+
+## Automatic quality: when the frame rate stays well under the display refresh, step down one preset (shadows, glow,
+## MSAA, tree count and car detail all drop). It never steps back up on its own (that would oscillate); press Q to raise it.
+## (The Compatibility renderer ignores 3D render-scale, so presets are the real lever.)
+func _adapt_quality(dt: float) -> void:
+	_fps_ema = lerpf(_fps_ema, 1.0 / maxf(dt, 1e-4), 1.0 - exp(-2.0 * dt))
+	_scale_lock = maxf(0.0, _scale_lock - dt)
+	var target := minf(maxf(30.0, DisplayServer.screen_get_refresh_rate()), 90.0)
+	if _fps_ema < target * 0.8 and _scale_lock <= 0.0:
+		_slow_s += dt
+	else:
+		_slow_s = 0.0
+	if _slow_s > 3.0:
+		var qi: int = Quality.LEVELS.find(quality_level)
+		if qi > 0:
+			apply_quality(Quality.LEVELS[qi - 1])
+			_auto_dropped = true
+		_slow_s = 0.0
+		_scale_lock = 10.0
+
+
+func _update_fps_label(dt: float) -> void:
+	_fps_text_t += dt
+	if _fps_text_t < 0.5 or _fps_label == null:
+		return
+	_fps_text_t = 0.0
+	_fps_label.text = "%d fps  |  %s%s  |  Q: quality" % [int(round(Engine.get_frames_per_second())), quality_level.capitalize(), " (auto)" if _auto_dropped else ""]
+
+
+func _bench_step(dt: float) -> void:
+	if _bench_s <= 0.0 or _frame < 150:
+		return
+	_bench_t += dt
+	_bench_acc.append(dt)
+	if _bench_t >= _bench_s:
+		var n := _bench_acc.size()
+		var sum := 0.0
+		var worst := 0.0
+		for d in _bench_acc:
+			sum += float(d)
+			worst = maxf(worst, float(d))
+		print("BENCH quality=%s avg_fps=%.0f worst_frame_ms=%.1f draws=%d objects=%d primitives=%d" % [
+			quality_level, n / sum, worst * 1000.0,
+			int(Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME)),
+			int(Performance.get_monitor(Performance.RENDER_TOTAL_OBJECTS_IN_FRAME)),
+			int(Performance.get_monitor(Performance.RENDER_TOTAL_PRIMITIVES_IN_FRAME))])
+		get_tree().quit()
 
 
 func _parse_args() -> void:
@@ -94,6 +208,20 @@ func _parse_args() -> void:
 			_burst_every = int(a.substr(14))
 		elif a.begins_with("--wet="):
 			_force_wet = float(a.substr(6))
+		elif a.begins_with("--quality="):
+			_forced_quality = a.substr(10)
+		elif a.begins_with("--bench="):
+			_bench_s = float(a.substr(8))
+		elif a == "--noadapt":
+			_no_adapt = true
+		elif a == "--probe":
+			add_child(load("res://tools/gpu_probe.gd").new())
+		elif a == "--novsync":
+			DisplayServer.window_set_vsync_mode(DisplayServer.VSYNC_DISABLED)
+		elif a.begins_with("--res="):
+			var wh := a.substr(6).split("x")
+			if wh.size() == 2:
+				DisplayServer.window_set_size(Vector2i(int(wh[0]), int(wh[1])))
 		elif a == "--noghost":
 			_no_ghost = true
 		elif a.begins_with("--select="):
@@ -113,6 +241,10 @@ func _compute_center() -> void:
 		minx = minf(minx, circuit.x[i]); maxx = maxf(maxx, circuit.x[i])
 		miny = minf(miny, circuit.y[i]); maxy = maxf(maxy, circuit.y[i])
 	_center = Vector3((minx + maxx) * 0.5, 0.0, -(miny + maxy) * 0.5)
+	# frame the whole circuit whatever its size (the defaults were tuned on Silverstone, ~1950 m across)
+	var extent := maxf(maxx - minx, maxy - miny)
+	_orbit_dist = extent * 1.3
+	_top_height = extent * 1.9
 
 
 func _make_broadcast_spots() -> void:
@@ -141,8 +273,14 @@ func _make_broadcast_spots() -> void:
 
 # ------------------------------------------------------------------ state from backend
 func _on_state(s: Dictionary) -> void:
+	# the backend owns the selected circuit: when it changes (selected in the web app), rebuild the whole scene for it
+	var cid := str(s.get("circuit_id", circuit_id))
+	if cid != circuit_id and FileAccess.file_exists("res://data/%s.json" % cid):
+		get_tree().reload_current_scene.call_deferred()
+		return
 	state = s
 	clock.update(s)
+	_bl_cache = RaceClock.baseline_laps(s)
 	_ensure_cars(s)
 	if hud:
 		hud.on_state(s)
@@ -158,11 +296,11 @@ func _ensure_cars(s: Dictionary) -> void:
 		var rival_i := 0
 		for car in list:
 			var cv := CarView.new()
-			var model := "raceCarRed"
+			var second := Color("#14161b")
 			if not bool(car["is_primary"]):
-				model = RIVAL_MODELS[rival_i % RIVAL_MODELS.size()]
+				second = Color(SECONDARY[rival_i % SECONDARY.size()])
 				rival_i += 1
-			cv.setup(str(car["id"]), model, Color(str(car["color"])), str(car["code"]), bool(car["is_primary"]))
+			cv.setup(str(car["id"]), "f1", Color(str(car["color"])), str(car["code"]), bool(car["is_primary"]), false, second)
 			add_child(cv)
 			cars[str(car["id"])] = cv
 			if bool(car["is_primary"]):
@@ -171,13 +309,15 @@ func _ensure_cars(s: Dictionary) -> void:
 			selected_id = primary_id
 		if ghost == null:
 			ghost = CarView.new()
-			ghost.setup("ghost", "raceCarWhite", Color.WHITE, "BASE", false, true)
+			ghost.setup("ghost", "f1", Color.WHITE, "BASE", false, true)
 			add_child(ghost)
 			safety_car = CarView.new()
 			safety_car.setup("sc", "raceCarOrange", Color("#ffb020"), "SC", false)
 			add_child(safety_car)
 			safety_car.visible = false
 		selection_changed.emit(selected_id)
+		if quality_level != "":
+			apply_quality(quality_level)
 	var ratio: float = float(s.get("pit_service_ratio", 0.8))
 	var idx := 0
 	for car in list:
@@ -195,10 +335,16 @@ func _ensure_cars(s: Dictionary) -> void:
 func _process(dt: float) -> void:
 	_time += dt
 	_frame += 1
+	_dt = dt
 	if not state.is_empty() and not cars.is_empty():
 		_update_cars()
 	_update_camera(dt)
 	_update_effects()
+	world.update_shadow_for_camera(cam.global_position.y)
+	if _bench_s <= 0.0 and not _no_adapt:
+		_adapt_quality(dt)
+	_update_fps_label(dt)
+	_bench_step(dt)
 	if _burst_prefix != "" and _frame % _burst_every == 0:
 		var pp: Variant = poses.get(primary_id)
 		var kind: String = str(pp["place"]["kind"]) if pp != null else "?"
@@ -240,14 +386,44 @@ func _update_cars() -> void:
 			lateral = (3.2 if slot % 2 == 1 else -3.2) * clampf(1.0 - maxf(0.0, float(place["total"])) / 0.012, 0.0, 1.0)
 		cv.apply_pose(pose, lateral)
 		cv.set_selected(id == selected_id)
+		# wheel spin / steering / brake lights from the car's real motion (distance and speed in race time)
+		var px := float(pose["x"])
+		var py := float(pose["y"])
+		var dyn: Variant = _dyn.get(id)
+		var ds := 0.0
+		var brake := 0.0
+		if dyn == null:
+			_dyn[id] = {"x": px, "y": py, "t": t, "v": 0.0, "b": 0.0}
+		else:
+			var dtr: float = t - float(dyn["t"])
+			ds = sqrt((px - float(dyn["x"])) ** 2 + (py - float(dyn["y"])) ** 2)
+			if ds > 40.0 or dtr < 0.0:
+				ds = 0.0
+			if dtr > 1e-4:
+				var v := ds / dtr
+				var dec := (float(dyn["v"]) - v) / dtr
+				dyn["b"] = float(dyn["b"]) + (clampf(dec / 20.0, 0.0, 1.0) - float(dyn["b"])) * minf(1.0, _dt * 10.0)
+				dyn["v"] = lerpf(float(dyn["v"]), v, minf(1.0, _dt * 8.0))
+			else:
+				dyn["v"] = float(dyn["v"]) * exp(-_dt * 5.0)
+				dyn["b"] = float(dyn["b"]) * exp(-_dt * 8.0)
+			dyn["x"] = px
+			dyn["y"] = py
+			dyn["t"] = t
+			brake = float(dyn["b"])
+		var kap := 0.0
+		if place["kind"] == "track":
+			kap = circuit.kappa[int(round(float(place["frac"]) * circuit.n)) % circuit.n]
+		cv.animate(_dt, ds, kap, brake, cam.global_position)
 		pose["place"] = place
 		pose["lateral"] = lateral
 		poses[id] = pose
 	# baseline shadow car
 	if state.get("baseline") != null and ghost != null and not _no_ghost:
-		var bl := RaceClock.baseline_laps(state)
-		var gp := RaceClock.place_car(bl, t, opts_cache["__ghost"])
-		ghost.apply_pose(RaceClock.pose_of(circuit, gp))
+		var gp := RaceClock.place_car(_bl_cache, t, opts_cache["__ghost"])
+		var gpose := RaceClock.pose_of(circuit, gp)
+		ghost.apply_pose(gpose)
+		ghost.animate(_dt, 0.0, 0.0, 0.0, cam.global_position)
 		ghost.position.y = 0.3
 		ghost.visible = true
 	elif ghost != null:
@@ -295,20 +471,37 @@ func _update_cars() -> void:
 
 
 func _update_effects() -> void:
-	world.scale_labels(cam.fov)
-	for cv in cars.values():
-		(cv as CarView).scale_label(cam.fov)
+	if absf(cam.fov - _last_fov) > 0.05:
+		_last_fov = cam.fov
+		world.scale_labels(cam.fov)
+		for cv in cars.values():
+			(cv as CarView).scale_label(cam.fov)
 	if _force_wet >= 0.0:
 		_wet = _force_wet
 	world.set_wetness(_wet)
 	world.set_safety_car(_sc_on, _time)
-	hud.set_rain(clampf((_wet - 0.05) * 1.4, 0.0, 1.0))
-	# dim and cool the light a little in the wet
-	world.sun.light_energy = lerpf(0.95, 0.55, clampf(_wet, 0.0, 1.0))
-	world.env.fog_density = lerpf(0.00007, 0.0003, clampf(_wet, 0.0, 1.0))
+	if absf(_wet - _applied_wet) > 0.002:
+		_applied_wet = _wet
+		hud.set_rain(clampf((_wet - 0.05) * 1.4, 0.0, 1.0))
+		# dim and cool the light a little in the wet
+		world.sun.light_energy = lerpf(0.95, 0.55, clampf(_wet, 0.0, 1.0))
+		world.env.fog_density = lerpf(0.00007, 0.0003, clampf(_wet, 0.0, 1.0))
 
 
 # ------------------------------------------------------------------ cameras
+const CIRCUIT_IDS := ["silverstone", "spa", "monza", "zandvoort"]
+
+
+## Ask the backend for a fresh race on another circuit; when the new state arrives this scene rebuilds for it.
+func change_circuit(id: String) -> void:
+	if id != circuit_id:
+		Backend.reset(str(state.get("config_name", "demo")), id)
+
+
+func change_scenario(config_name: String) -> void:
+	Backend.reset(config_name, circuit_id)
+
+
 func set_camera_mode(m: int) -> void:
 	cam_mode = m
 	_spot_valid = false
@@ -417,6 +610,13 @@ func _unhandled_input(e: InputEvent) -> void:
 			KEY_4: set_camera_mode(Cam.ORBIT)
 			KEY_5: set_camera_mode(Cam.HOOD)
 			KEY_TAB: cycle_selection(1)
+			KEY_F11:
+				var fs := DisplayServer.window_get_mode() == DisplayServer.WINDOW_MODE_FULLSCREEN
+				DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_WINDOWED if fs else DisplayServer.WINDOW_MODE_FULLSCREEN)
+			KEY_T: change_circuit(CIRCUIT_IDS[(CIRCUIT_IDS.find(circuit_id) + 1) % CIRCUIT_IDS.size()])
+			KEY_Q:
+				var qi: int = (Quality.LEVELS.find(quality_level) + 1) % Quality.LEVELS.size()
+				apply_quality(Quality.LEVELS[qi])
 			KEY_C: hud.open_console(not hud.console_open)
 			KEY_SPACE:
 				if state.get("status") == "idle": Backend.start()

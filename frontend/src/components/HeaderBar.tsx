@@ -2,7 +2,7 @@ import type { RaceState } from "../types/race";
 import { fmtClock, signed } from "../lib/format";
 import RaceControls, { type ControlProps } from "./RaceControls";
 
-interface Props extends ControlProps { mode: "ws" | "poll" }
+interface Props extends ControlProps { mode: "ws" | "poll"; onOpenTracks: () => void }
 
 const STATUS_COLOR: Record<string, string> = {
   idle: "#cfb0b4", running: "#2fe08a", paused: "#ffb020", finished: "#4fe0f7",
@@ -25,16 +25,24 @@ export default function HeaderBar(p: Props) {
     <header className="relative z-20 px-4 md:px-5 pt-2 pb-2"
       style={{ background: "linear-gradient(180deg, rgba(255,59,71,.16), rgba(28,7,11,0) 100%)", borderBottom: "1px solid rgba(255,120,130,.28)" }}>
       <div className="absolute left-0 right-0 top-0 h-[3px]" style={{ background: "linear-gradient(90deg, #ff3b47, #ff3b47 28%, rgba(255,59,71,0) 80%)" }} />
-      <div className="flex flex-wrap items-center gap-x-5 gap-y-2 max-w-[1920px] mx-auto">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 max-w-[1920px] mx-auto">
         <div className="min-w-[200px]">
           <div className="label !text-[9px] flex items-center gap-2">
             <span className="inline-block w-2 h-2 rounded-full pulse-dot" style={{ background: online ? "#2fe08a" : "#ff3b47" }} />
             {online ? (mode === "ws" ? "LIVE FEED / WEBSOCKET" : "LIVE FEED / POLLING") : "BACKEND OFFLINE"}
           </div>
           <h1 className="num text-[26px] leading-[0.95] uppercase tracking-wide">
-            The Impossible <span className="text-red">Pit Stop</span>
+            Clutch<span className="text-red">AI</span>
           </h1>
-                  </div>
+        </div>
+
+        <button type="button" className="text-left pl-4 border-l border-[rgba(255,120,130,.28)] group" onClick={p.onOpenTracks}
+          aria-haspopup="dialog" aria-label={`Track selection: ${state.track?.name ?? state.circuit_id}. Click to change circuit`} title="Choose circuit">
+          <div className="label !text-[9px]">Track {state.track ? `· ${(state.track.length_m / 1000).toFixed(2)} km` : ""} <span className="text-red">▾</span></div>
+          <div className="num text-[22px] uppercase leading-[1.3] group-hover:text-red transition-colors whitespace-nowrap">
+            {state.track?.name.replace(/ (Grand Prix )?Circuit$/i, "").replace(/^(Circuit|Autodromo Nazionale)( de)? /i, "") ?? state.circuit_id}
+          </div>
+        </button>
 
         <div className="flex items-center gap-4">
           <div className="pl-4 border-l border-[rgba(255,120,130,.28)]">

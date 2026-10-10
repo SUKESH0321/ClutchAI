@@ -1,0 +1,46 @@
+[
+ {
+  "file": "grass_0.glb",
+  "triangles": 700,
+  "height_over_width": 0.254,
+  "source_color": [
+   1,
+   1,
+   1,
+   1
+  ]
+ },
+ {
+  "file": "grass_1.glb",
+  "triangles": 700,
+  "height_over_width": 0.234,
+  "source_color": [
+   1,
+   1,
+   1,
+   1
+  ]
+ },
+ {
+  "file": "grass_2.glb",
+  "triangles": 700,
+  "height_over_width": 0.264,
+  "source_color": [
+   1,
+   1,
+   1,
+   1
+  ]
+ },
+ {
+  "file": "grass_3.glb",
+  "triangles": 700,
+  "height_over_width": 0.214,
+  "source_color": [
+   1,
+   1,
+   1,
+   1
+  ]
+ }
+]

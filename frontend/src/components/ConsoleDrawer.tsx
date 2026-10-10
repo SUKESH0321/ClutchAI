@@ -62,6 +62,7 @@ export default function ConsoleDrawer(p: Props) {
         </h2>
         <span className="hidden sm:flex items-center gap-2 ml-2">
           <Chip color={STATUS_COLOR[state.status]}>{state.status}</Chip>
+          <Chip color="#FF3B47">{state.track?.name ?? state.circuit_id}</Chip>
           <Chip>Lap {state.lap}/{state.total_laps}</Chip>
           {state.conditions.safety_car && <Chip color="#ffb020">Safety car</Chip>}
           {state.conditions.weather !== "DRY" && <Chip color="#2f8bff">{state.conditions.weather}</Chip>}
@@ -100,7 +101,7 @@ export default function ConsoleDrawer(p: Props) {
                     <WearChart state={state} />
                     <LapTimeChart state={state} />
                   </div>
-                  <BenchmarkPanel />
+                  <BenchmarkPanel circuitId={state.circuit_id} circuitName={state.track?.name ?? state.circuit_id} />
                 </div>
               )}
               {tab === "events" && (

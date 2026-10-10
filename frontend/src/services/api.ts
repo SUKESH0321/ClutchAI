@@ -1,4 +1,4 @@
-import type { BenchmarkResults, BenchmarkStatus, EventRequest, RaceState, Recommendation } from "../types/race";
+import type { BenchmarkResults, BenchmarkStatus, EventRequest, RaceState, Recommendation, TrackInfo } from "../types/race";
 
 async function call<T>(method: string, url: string, body?: unknown): Promise<T> {
   const res = await fetch(url, {
@@ -22,7 +22,8 @@ async function call<T>(method: string, url: string, body?: unknown): Promise<T> 
 export const api = {
   state: () => call<RaceState>("GET", "/api/race/state"),
   configs: () => call<string[]>("GET", "/api/configs"),
-  reset: (config_name?: string) => call<RaceState>("POST", "/api/race/reset", { config_name }),
+  reset: (config_name?: string, circuit?: string) => call<RaceState>("POST", "/api/race/reset", { config_name, circuit }),
+  circuits: () => call<TrackInfo[]>("GET", "/api/circuits"),
   start: () => call<RaceState>("POST", "/api/race/start"),
   pause: () => call<RaceState>("POST", "/api/race/pause"),
   resume: () => call<RaceState>("POST", "/api/race/resume"),
@@ -35,5 +36,5 @@ export const api = {
   evalRun: (trials: number, seed_start: number) =>
     call<BenchmarkStatus>("POST", "/api/evaluation/run", { trials, seed_start }),
   evalStatus: () => call<BenchmarkStatus>("GET", "/api/evaluation/status"),
-  evalResults: () => call<BenchmarkResults>("GET", "/api/evaluation/results"),
+  evalResults: (circuit?: string) => call<BenchmarkResults>("GET", `/api/evaluation/results${circuit ? `?circuit=${encodeURIComponent(circuit)}` : ""}`),
 };

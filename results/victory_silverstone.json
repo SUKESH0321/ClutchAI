@@ -1,0 +1,165 @@
+{
+  "circuit_id": "silverstone",
+  "trials": 40,
+  "seed_start": 20000,
+  "optimizer_scenarios": 10,
+  "paces": {
+    "-0.55": {
+      "dry": {
+        "adaptive": {
+          "win_rate": 0.75,
+          "podium_rate": 1.0,
+          "mean_position": 1.25,
+          "wins": 30,
+          "trials": 40
+        },
+        "baseline": {
+          "win_rate": 0.825,
+          "podium_rate": 1.0,
+          "mean_position": 1.175,
+          "wins": 33,
+          "trials": 40
+        },
+        "win_rate_gain": -0.07499999999999996,
+        "mean_position_gain": -0.07499999999999996,
+        "mean_time_saved_s": -0.7041489237881364
+      },
+      "rain": {
+        "adaptive": {
+          "win_rate": 0.975,
+          "podium_rate": 1.0,
+          "mean_position": 1.025,
+          "wins": 39,
+          "trials": 40
+        },
+        "baseline": {
+          "win_rate": 0.0,
+          "podium_rate": 0.15,
+          "mean_position": 5.6,
+          "wins": 0,
+          "trials": 40
+        },
+        "win_rate_gain": 0.975,
+        "mean_position_gain": 4.574999999999999,
+        "mean_time_saved_s": 45.215341608956976
+      },
+      "safety_car": {
+        "adaptive": {
+          "win_rate": 0.875,
+          "podium_rate": 1.0,
+          "mean_position": 1.125,
+          "wins": 35,
+          "trials": 40
+        },
+        "baseline": {
+          "win_rate": 0.875,
+          "podium_rate": 1.0,
+          "mean_position": 1.125,
+          "wins": 35,
+          "trials": 40
+        },
+        "win_rate_gain": 0.0,
+        "mean_position_gain": 0.0,
+        "mean_time_saved_s": -0.3169662261125836
+      },
+      "rain_and_sc": {
+        "adaptive": {
+          "win_rate": 0.975,
+          "podium_rate": 1.0,
+          "mean_position": 1.025,
+          "wins": 39,
+          "trials": 40
+        },
+        "baseline": {
+          "win_rate": 0.0,
+          "podium_rate": 0.525,
+          "mean_position": 4.1,
+          "wins": 0,
+          "trials": 40
+        },
+        "win_rate_gain": 0.975,
+        "mean_position_gain": 3.0749999999999997,
+        "mean_time_saved_s": 35.82967989759256
+      }
+    },
+    "+0.00": {
+      "dry": {
+        "adaptive": {
+          "win_rate": 0.0,
+          "podium_rate": 0.075,
+          "mean_position": 4.225,
+          "wins": 0,
+          "trials": 40
+        },
+        "baseline": {
+          "win_rate": 0.0,
+          "podium_rate": 0.1,
+          "mean_position": 4.05,
+          "wins": 0,
+          "trials": 40
+        },
+        "win_rate_gain": 0.0,
+        "mean_position_gain": -0.17499999999999982,
+        "mean_time_saved_s": -0.7041489237880796
+      },
+      "rain": {
+        "adaptive": {
+          "win_rate": 0.675,
+          "podium_rate": 1.0,
+          "mean_position": 1.325,
+          "wins": 27,
+          "trials": 40
+        },
+        "baseline": {
+          "win_rate": 0.0,
+          "podium_rate": 0.0,
+          "mean_position": 6.85,
+          "wins": 0,
+          "trials": 40
+        },
+        "win_rate_gain": 0.675,
+        "mean_position_gain": 5.5249999999999995,
+        "mean_time_saved_s": 45.215341608957054
+      },
+      "safety_car": {
+        "adaptive": {
+          "win_rate": 0.0,
+          "podium_rate": 1.0,
+          "mean_position": 2.875,
+          "wins": 0,
+          "trials": 40
+        },
+        "baseline": {
+          "win_rate": 0.0,
+          "podium_rate": 1.0,
+          "mean_position": 2.875,
+          "wins": 0,
+          "trials": 40
+        },
+        "win_rate_gain": 0.0,
+        "mean_position_gain": 0.0,
+        "mean_time_saved_s": -0.31696622611268593
+      },
+      "rain_and_sc": {
+        "adaptive": {
+          "win_rate": 0.7,
+          "podium_rate": 1.0,
+          "mean_position": 1.3,
+          "wins": 28,
+          "trials": 40
+        },
+        "baseline": {
+          "win_rate": 0.0,
+          "podium_rate": 0.0,
+          "mean_position": 5.925,
+          "wins": 0,
+          "trials": 40
+        },
+        "win_rate_gain": 0.7,
+        "mean_position_gain": 4.625,
+        "mean_time_saved_s": 35.829679897592584
+      }
+    }
+  },
+  "note": "Same hidden world and same rivals for both strategies per seed. pace is the strategy car's pace offset vs the field (negative = faster; the fastest rival is -0.45). Results are simulated, not real-world."
+}

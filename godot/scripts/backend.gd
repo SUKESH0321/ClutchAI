@@ -122,7 +122,11 @@ func pause() -> void: api(HTTPClient.METHOD_POST, "/api/race/pause")
 func resume() -> void: api(HTTPClient.METHOD_POST, "/api/race/resume")
 func step() -> void: api(HTTPClient.METHOD_POST, "/api/race/step")
 func finish() -> void: api(HTTPClient.METHOD_POST, "/api/race/finish")
-func reset(config_name: String = "demo") -> void: api(HTTPClient.METHOD_POST, "/api/race/reset", {"config_name": config_name})
+func reset(config_name: String = "demo", circuit: String = "") -> void:
+	var b := {"config_name": config_name}
+	if circuit != "":
+		b["circuit"] = circuit
+	api(HTTPClient.METHOD_POST, "/api/race/reset", b)
 func set_speed(v: float) -> void: api(HTTPClient.METHOD_POST, "/api/race/speed", {"speed": v})
 func event(type: String, intensity: float = -1.0) -> void:
 	var b := {"type": type}

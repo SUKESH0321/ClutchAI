@@ -5,6 +5,7 @@ import type { RaceState } from "./types/race";
 import HeaderBar from "./components/HeaderBar";
 import RaceView from "./components/RaceView";
 import WheelButton from "./components/WheelButton";
+import TrackSelector from "./components/TrackSelector";
 import ConsoleDrawer, { type TabId } from "./components/ConsoleDrawer";
 import { RaceClock } from "./lib/raceClock";
 
@@ -17,6 +18,7 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
   const [tab, setTab] = useState<TabId>("telemetry");
+  const [tracksOpen, setTracksOpen] = useState(false);
 
   useEffect(() => {
     api.configs().then(setConfigs).catch(() => undefined);
@@ -38,6 +40,8 @@ export default function App() {
       .finally(() => setBusy(false));
   }, [apply]);
 
+  // the backend owns the selected circuit (state.circuit_id): switching resets the race there and the new state flows back
+  const selectCircuit = useCallback((id: string) => act(() => api.reset(config, id)), [act, config]);
   const toggle = useCallback(() => setOpen((o) => !o), []);
   const close = useCallback(() => setOpen(false), []);
 
@@ -45,7 +49,7 @@ export default function App() {
     return (
       <div className="min-h-screen grid place-items-center">
         <div className="text-center">
-          <div className="num text-5xl uppercase">The Impossible <span className="text-red">Pit Stop</span></div>
+          <div className="num text-5xl uppercase">Clutch<span className="text-red">AI</span></div>
           <div className="label mt-3 pulse-dot">{online ? "Loading race state" : "Connecting to the strategy backend on :8000"}</div>
           <div className="text-[11px] text-muted mt-2">Start it with: python -m uvicorn app.main:app --port 8000 (from backend/)</div>
         </div>
@@ -59,7 +63,7 @@ export default function App() {
 
   return (
     <div className="h-screen min-h-[640px] flex flex-col overflow-hidden">
-      <HeaderBar {...controls} mode={mode} />
+      <HeaderBar {...controls} mode={mode} onOpenTracks={() => setTracksOpen(true)} />
       {error && (
         <div role="alert" className="mx-4 mt-2 text-[12px] px-3 py-2 flex items-center gap-3"
           style={{ background: "rgba(120,10,25,.55)", border: "1px solid #ff3b47" }}>
@@ -68,6 +72,7 @@ export default function App() {
         </div>
       )}
       <RaceView state={state} clock={clock} drawerOpen={open} />
+      <TrackSelector open={tracksOpen} state={state} busy={busy} onClose={() => setTracksOpen(false)} onSelect={selectCircuit} />
       <WheelButton open={open} onClick={toggle} badge={badge} />
       <ConsoleDrawer {...controls} open={open} onClose={close} tab={tab} setTab={setTab} error={error} />
     </div>

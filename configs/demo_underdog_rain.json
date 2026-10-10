@@ -1,0 +1,14 @@
+{
+  "name": "demo_underdog_rain",
+  "seed": 100,
+  "random_events": false,
+  "primary_pace_s": 0.0,
+  "scripted_events": [
+    {
+      "lap": 8,
+      "type": "RAIN",
+      "intensity": 0.8,
+      "duration": 7
+    }
+  ]
+}

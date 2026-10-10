@@ -1,3 +1,8 @@
+import { useMemo, useRef, useState } from "react";
+import { Canvas, useFrame } from "@react-three/fiber";
+import { Environment, Lightformer } from "@react-three/drei";
+import * as THREE from "three";
+
 interface Props {
   open: boolean;
   onClick: () => void;
@@ -5,67 +10,128 @@ interface Props {
   badge?: string | null;
 }
 
-const TREAD = Array.from({ length: 40 }, (_, i) => i * 9);
-const SPOKES = [0, 72, 144, 216, 288];
+/** Slick-tyre cross-section (radius, axial) revolved around the axle: wide flat tread, rounded shoulders, inset sidewall. */
+const TYRE_PROFILE = [[0.6, -0.27], [0.7, -0.292], [0.86, -0.285], [0.955, -0.235], [0.995, -0.15], [1, -0.08], [1, 0.08], [0.995, 0.15],
+  [0.955, 0.235], [0.86, 0.285], [0.7, 0.292], [0.6, 0.27]].map(([r, y]) => new THREE.Vector2(r, y));
+const RIM_PROFILE = [[0.6, -0.24], [0.64, -0.25], [0.66, -0.2], [0.62, -0.1], [0.6, 0], [0.62, 0.1], [0.66, 0.2], [0.64, 0.25], [0.6, 0.24]]
+  .map(([r, y]) => new THREE.Vector2(r, y));
 
-/** Floating racing-wheel button: rubber tyre with tread, red compound band, metallic multi-spoke rim. */
+function rubberBump(): THREE.CanvasTexture {
+  const cv = document.createElement("canvas"); cv.width = cv.height = 128;
+  const g = cv.getContext("2d")!;
+  const img = g.createImageData(128, 128);
+  for (let i = 0; i < img.data.length; i += 4) { const v = 120 + Math.random() * 70; img.data.set([v, v, v, 255], i); }
+  g.putImageData(img, 0, 0);
+  const t = new THREE.CanvasTexture(cv); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(10, 3);
+  return t;
+}
+
+/** The wheel disc: a closed F1-style wheel cover with ten radial vents and a central lock nut. */
+function faceGeometry(): THREE.ExtrudeGeometry {
+  const s = new THREE.Shape(); s.absarc(0, 0, 0.6, 0, Math.PI * 2, false);
+  for (let i = 0; i < 10; i++) {
+    const a = (i / 10) * Math.PI * 2, hole = new THREE.Path();
+    const cx = Math.cos(a), cy = Math.sin(a), tx = -cy, ty = cx;
+    const pt = (r: number, w: number) => [cx * r + tx * w, cy * r + ty * w] as const;
+    hole.moveTo(...pt(0.26, -0.045)); hole.lineTo(...pt(0.5, -0.07)); hole.lineTo(...pt(0.5, 0.07)); hole.lineTo(...pt(0.26, 0.045)); hole.closePath();
+    s.holes.push(hole);
+  }
+  const g = new THREE.ExtrudeGeometry(s, { depth: 0.05, bevelEnabled: true, bevelThickness: 0.012, bevelSize: 0.012, bevelSegments: 2, curveSegments: 40 });
+  g.translate(0, 0, -0.1);
+  return g;
+}
+
+function Wheel({ hovered, open }: { hovered: boolean; open: boolean }) {
+  const root = useRef<THREE.Group>(null);
+  const spin = useRef<THREE.Group>(null);
+  const hub = useRef<THREE.MeshStandardMaterial>(null);
+  const bump = useMemo(rubberBump, []);
+  const face = useMemo(faceGeometry, []);
+  const reduce = useMemo(() => typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches, []);
+  const state = useRef({ scale: 1, spin: 0 });
+  useFrame(({ clock }, dt) => {
+    const S = state.current;
+    S.scale += ((hovered ? 1.09 : 1) - S.scale) * Math.min(1, dt * 9);
+    S.spin += dt * (reduce ? 0 : hovered ? 1.6 : open ? 0.9 : 0.45);
+    if (spin.current) spin.current.rotation.z = S.spin;
+    if (root.current) {
+      root.current.scale.setScalar(S.scale);
+      root.current.position.y = reduce ? 0 : Math.sin(clock.elapsedTime * 1.7) * 0.035;
+      root.current.rotation.y = -0.62 + (reduce ? 0 : Math.sin(clock.elapsedTime * 0.6) * 0.06);   // three-quarter view: sidewall and tread both visible
+      root.current.rotation.x = 0.16;
+    }
+    if (hub.current) hub.current.emissiveIntensity = hovered ? 1.2 : open ? 0.8 : 0.35;
+  });
+  return (
+    <group ref={root}>
+      <group ref={spin}>
+        {/* tyre: black slick with fine rubber grain */}
+        <mesh rotation={[Math.PI / 2, 0, 0]}>
+          <latheGeometry args={[TYRE_PROFILE, 72]} />
+          <meshStandardMaterial color="#17181b" roughness={0.88} metalness={0.02} bumpMap={bump} bumpScale={0.6} side={THREE.DoubleSide} />
+        </mesh>
+        {/* sidewall compound band (red accent) and fine marking ring, both sides */}
+        {[-1, 1].map((z) => (
+          <group key={z} position={[0, 0, z * 0.2935]} rotation={[0, z > 0 ? 0 : Math.PI, 0]}>
+            <mesh><ringGeometry args={[0.76, 0.83, 72]} /><meshStandardMaterial color="#ff2d3a" roughness={0.5} emissive="#b0101c" emissiveIntensity={0.5} /></mesh>
+            <mesh position={[0, 0, 0.001]}><ringGeometry args={[0.855, 0.87, 72]} /><meshBasicMaterial color="#f2e6e6" transparent opacity={0.7} /></mesh>
+          </group>
+        ))}
+        {/* rim barrel and lip */}
+        <mesh rotation={[Math.PI / 2, 0, 0]}>
+          <latheGeometry args={[RIM_PROFILE, 72]} />
+          <meshStandardMaterial color="#c9ced6" metalness={1} roughness={0.22} side={THREE.DoubleSide} />
+        </mesh>
+        {/* wheel face (vented cover) */}
+        <mesh geometry={face} position={[0, 0, 0.12]}>
+          <meshStandardMaterial color="#8d939d" metalness={1} roughness={0.3} />
+        </mesh>
+        <mesh geometry={face} position={[0, 0, -0.1]} scale={[1, 1, -1]}>
+          <meshStandardMaterial color="#6f757f" metalness={1} roughness={0.35} />
+        </mesh>
+        {/* hub: lock nut with red accent, drive pegs */}
+        <mesh position={[0, 0, 0.19]} rotation={[Math.PI / 2, 0, 0]}>
+          <cylinderGeometry args={[0.16, 0.16, 0.1, 6]} />
+          <meshStandardMaterial ref={hub} color="#e0202e" metalness={0.7} roughness={0.28} emissive="#ff2d3a" emissiveIntensity={0.35} />
+        </mesh>
+        <mesh position={[0, 0, 0.245]} rotation={[Math.PI / 2, 0, 0]}>
+          <cylinderGeometry args={[0.07, 0.07, 0.03, 24]} />
+          <meshStandardMaterial color="#2a0d11" metalness={0.8} roughness={0.35} />
+        </mesh>
+        {[0, 1, 2].map((i) => (
+          <mesh key={i} position={[Math.cos((i * 2 * Math.PI) / 3 + 0.5) * 0.27, Math.sin((i * 2 * Math.PI) / 3 + 0.5) * 0.27, 0.18]} rotation={[Math.PI / 2, 0, 0]}>
+            <cylinderGeometry args={[0.035, 0.035, 0.05, 12]} /><meshStandardMaterial color="#e6e8ec" metalness={1} roughness={0.2} />
+          </mesh>
+        ))}
+      </group>
+    </group>
+  );
+}
+
+/**
+ * Floating race-control button: a real 3D Formula-style wheel (slick tyre with red compound band, vented metal wheel face,
+ * red lock nut), lit by studio light panels. The canvas ignores the pointer; the <button> around it takes all input.
+ */
 export default function WheelButton({ open, onClick, badge }: Props) {
+  const [hovered, setHovered] = useState(false);
   return (
     <div className="wheel-wrap">
       <button type="button" className="wheel-btn" onClick={onClick} aria-expanded={open} aria-controls="race-console"
+        onPointerEnter={() => setHovered(true)} onPointerLeave={() => setHovered(false)} onFocus={() => setHovered(true)} onBlur={() => setHovered(false)}
         aria-label={open ? "Close race control and telemetry" : "Open race control and telemetry"}>
-        <svg viewBox="0 0 120 120" width="84" height="84" aria-hidden="true">
-          <defs>
-            <radialGradient id="rubber" cx="38%" cy="32%" r="80%">
-              <stop offset="0" stopColor="#4a3438" /><stop offset="0.55" stopColor="#1f1316" /><stop offset="1" stopColor="#0b0607" />
-            </radialGradient>
-            <linearGradient id="metal" x1="0" y1="0" x2="1" y2="1">
-              <stop offset="0" stopColor="#f6f1ee" /><stop offset="0.35" stopColor="#a8a0a2" />
-              <stop offset="0.6" stopColor="#e9e2e0" /><stop offset="1" stopColor="#6c6165" />
-            </linearGradient>
-            <linearGradient id="metalDark" x1="0" y1="1" x2="1" y2="0">
-              <stop offset="0" stopColor="#3a2d31" /><stop offset="1" stopColor="#8d8084" />
-            </linearGradient>
-            <radialGradient id="hubRed" cx="40%" cy="35%" r="70%">
-              <stop offset="0" stopColor="#ff7a82" /><stop offset="0.6" stopColor="#ff3b47" /><stop offset="1" stopColor="#8e0f1b" />
-            </radialGradient>
-          </defs>
-
-          {/* tyre */}
-          <circle cx="60" cy="60" r="58" fill="url(#rubber)" />
-          {TREAD.map((a) => (
-            <rect key={a} x="58.4" y="1.5" width="3.2" height="6.5" rx="0.8" fill="#080405" opacity="0.95" transform={`rotate(${a} 60 60)`} />
-          ))}
-          <circle cx="60" cy="60" r="50" fill="none" stroke="#080405" strokeWidth="1.5" opacity="0.7" />
-          {/* red compound band on the sidewall */}
-          <circle cx="60" cy="60" r="46" fill="none" stroke="#ff3b47" strokeWidth="3.2" />
-          <circle cx="60" cy="60" r="46" fill="none" stroke="#fff4f1" strokeWidth="1" strokeDasharray="2 5" opacity="0.7" />
-          <circle cx="60" cy="60" r="42" fill="#120a0c" />
-
-          {/* rim (rotates) */}
-          <g className="wheel-rim">
-            <circle cx="60" cy="60" r="40" fill="url(#metal)" />
-            <circle cx="60" cy="60" r="35" fill="#1a0f12" />
-            {SPOKES.map((a) => (
-              <g key={a} transform={`rotate(${a} 60 60)`}>
-                <path d="M 56.4 56 L 54.2 26 Q 60 22.5 65.8 26 L 63.6 56 Z" fill="url(#metal)" />
-                <path d="M 58 52 L 57.2 29 L 60 27.6" fill="none" stroke="#fff" strokeOpacity="0.55" strokeWidth="0.9" />
-              </g>
-            ))}
-            <circle cx="60" cy="60" r="35" fill="none" stroke="url(#metalDark)" strokeWidth="2.2" />
-            <circle cx="60" cy="60" r="15" fill="url(#metalDark)" />
-            {SPOKES.map((a) => (
-              <circle key={a} cx="60" cy="49.5" r="1.7" fill="#e8dfdd" transform={`rotate(${a + 36} 60 60)`} />
-            ))}
-          </g>
-
-          {/* hub nut */}
-          <circle cx="60" cy="60" r="8.5" fill="url(#hubRed)" stroke="#2a0a10" strokeWidth="1" />
-          <circle cx="60" cy="60" r="3" fill="#2a0a10" />
-          {/* specular highlights */}
-          <ellipse cx="38" cy="30" rx="22" ry="9" fill="#fff" opacity="0.14" transform="rotate(-38 38 30)" />
-          <path d="M 12 70 A 50 50 0 0 0 40 108" fill="none" stroke="#fff" strokeOpacity="0.12" strokeWidth="2" />
-        </svg>
+        <Canvas dpr={[1, 2]} camera={{ position: [0, 0, 4.1], fov: 34 }} gl={{ alpha: true, antialias: true }}
+          style={{ pointerEvents: "none", background: "transparent" }}>
+          <ambientLight intensity={0.25} />
+          <directionalLight position={[2.5, 3, 4]} intensity={2.2} color="#fff1ee" />
+          <pointLight position={[-3, -1.5, 2]} intensity={14} color="#ff3b47" distance={9} />
+          <Environment resolution={128}>
+            <Lightformer form="rect" intensity={3.2} position={[0, 3, 3]} scale={[7, 2, 1]} color="#ffffff" />
+            <Lightformer form="rect" intensity={1.6} position={[-4, 0, 2]} scale={[2, 5, 1]} color="#ffb4b9" />
+            <Lightformer form="rect" intensity={1.2} position={[4, -1, 1]} scale={[2, 4, 1]} color="#ffffff" />
+            <Lightformer form="ring" intensity={1.2} position={[0, 0, -4]} scale={4} color="#ff3b47" />
+          </Environment>
+          <Wheel hovered={hovered} open={open} />
+        </Canvas>
         {badge && (
           <span className="absolute -top-1 -right-2 num text-[12px] px-2 py-[1px] pulse-dot"
             style={{ background: "#ff3b47", color: "#fff", border: "1px solid #ffd0d4", letterSpacing: ".1em" }}>{badge}</span>

@@ -17,3 +17,4 @@ export const KENNEY = (name: string) => asset(`environment/kenney-racing-kit/${n
 export const CAR_MODEL = (name: string) => asset(`cars/${name}.glb`);
 export const CHARACTER = (name: string) => asset(`characters/${name}.glb`);
 export const OLD_TYRE = asset("environment/old_tyre/old_tyre_1k.gltf");
+export const F1_MODEL = (lod: "hi" | "lo") => asset(`cars/f1/f1_${lod}.glb`);
