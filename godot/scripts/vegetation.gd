@@ -18,7 +18,7 @@ const GRASS_CLEARANCE := 26.0
 const PIT_CLEARANCE := 85.0
 const CORNER_OPEN_R := 90.0
 const FULL_TREES := 2600          # instances at density 1.0
-const FULL_GRASS := 9000
+const FULL_GRASS := 40000
 
 var tree_nodes: Array = []
 var grass_nodes: Array = []
@@ -123,8 +123,8 @@ func build(c: Circuit, exclusions: Array, seed_v: int = 7) -> void:
 				dens_t[k] = (forest_m + (1.0 - forest_m) * 0.1) * wd
 				tot_t += dens_t[k]
 			if not near_pit:
-				var wg := _smooth(GRASS_CLEARANCE, 44.0, e) * (1.0 - _smooth(90.0, 420.0, e))
-				dens_g[k] = wg * (0.35 + 0.65 * forest_m)
+				var wg := _smooth(GRASS_CLEARANCE, 40.0, e) * (1.0 - _smooth(220.0, 700.0, e))
+				dens_g[k] = wg * (0.7 + 0.3 * forest_m)
 				tot_g += dens_g[k]
 
 	var st := FULL_TREES / maxf(tot_t, 1e-6)
@@ -159,8 +159,8 @@ func build(c: Circuit, exclusions: Array, seed_v: int = 7) -> void:
 				var y2 := cy + rng.randf() * CELL
 				if e < GRASS_CLEARANCE + CELL and c.edge_distance(x2, y2) < GRASS_CLEARANCE:
 					continue
-				var s2 := 1.4 + rng.randf() * rng.randf() * 3.2
-				var b2 := Basis(Vector3.UP, rng.randf() * TAU).scaled(Vector3(s2, s2 * (0.8 + rng.randf() * 0.5), s2))
+				var s2 := 1.8 + rng.randf() * 2.4
+				var b2 := Basis(Vector3.UP, rng.randf() * TAU).scaled(Vector3(s2, s2 * (1.6 + rng.randf() * 1.2), s2))
 				_add(per_chunk, x2, y2, false, rng.randi() % GRASS_FILES.size(), Transform3D(b2, Vector3(x2, -0.02, -y2)))
 
 	for key in per_chunk:
@@ -168,7 +168,7 @@ func build(c: Circuit, exclusions: Array, seed_v: int = 7) -> void:
 		for sp in ch["trees"]:
 			_emit(ch["trees"][sp], TREE_FILES[sp], "trees_real_%s_%d" % [key, sp], 950.0, tree_nodes)
 		for sp in ch["grass"]:
-			_emit(ch["grass"][sp], GRASS_FILES[sp], "grass_%s_%d" % [key, sp], 230.0, grass_nodes)
+			_emit(ch["grass"][sp], GRASS_FILES[sp], "grass_%s_%d" % [key, sp], 300.0, grass_nodes)
 
 
 func _pick_tree(rng: RandomNumberGenerator, kind_v: float, e: float) -> int:
@@ -194,6 +194,9 @@ func _add(per_chunk: Dictionary, x: float, y: float, tree: bool, sp: int, xf: Tr
 	(bucket[sp] as Array).append(xf)
 
 
+var _grass_mat: StandardMaterial3D
+
+
 func _emit(xfs: Array, file: String, node_name: String, vis_end: float, into: Array) -> void:
 	var mesh := _mesh(file)
 	if mesh == null or xfs.is_empty():
@@ -209,6 +212,15 @@ func _emit(xfs: Array, file: String, node_name: String, vis_end: float, into: Ar
 	mmi.multimesh = mm
 	mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	mmi.visibility_range_end = vis_end
+	if file.begins_with("grass"):
+		if _grass_mat == null:
+			_grass_mat = StandardMaterial3D.new()
+			_grass_mat.albedo_color = Color("#1f4a16")        # deep natural green, matte
+			_grass_mat.roughness = 1.0
+			_grass_mat.metallic = 0.0
+			_grass_mat.metallic_specular = 0.0
+			_grass_mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+		mmi.material_override = _grass_mat
 	add_child(mmi)
 	into.append(mmi)
 

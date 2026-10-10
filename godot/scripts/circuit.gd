@@ -120,9 +120,9 @@ func _build_grid() -> void:
 	_grid.clear()
 	for i in n:
 		var key := Vector2i(int(floorf(x[i] / _GRID_CELL)), int(floorf(y[i] / _GRID_CELL)))
-		if not _grid.has(key):
-			_grid[key] = PackedInt32Array()
-		(_grid[key] as PackedInt32Array).append(i)
+		var cell: PackedInt32Array = _grid.get(key, PackedInt32Array())   # packed arrays are copied on read: write the cell back
+		cell.append(i)
+		_grid[key] = cell
 
 
 ## Nearest centerline sample: {d: distance, i: index}. Uses a spatial hash (cells of 80 m, +-2 cells searched).
@@ -133,18 +133,23 @@ func nearest(qx: float, qy: float) -> Dictionary:
 	var cy := int(floorf(qy / _GRID_CELL))
 	var best := 1e18
 	var bi := 0
-	for dx in range(-2, 3):
-		for dy in range(-2, 3):
-			var arr: Variant = _grid.get(Vector2i(cx + dx, cy + dy))
-			if arr == null:
-				continue
-			for i in (arr as PackedInt32Array):
-				var ddx := qx - x[i]
-				var ddy := qy - y[i]
-				var d2 := ddx * ddx + ddy * ddy
-				if d2 < best:
-					best = d2
-					bi = i
+	for radius in [2, 6, 14]:        # widen the search until a sample is found (far from the track the first pass finds none)
+		for dx in range(-radius, radius + 1):
+			for dy in range(-radius, radius + 1):
+				if radius > 2 and absi(dx) <= 2 and absi(dy) <= 2:
+					continue
+				var arr: Variant = _grid.get(Vector2i(cx + dx, cy + dy))
+				if arr == null:
+					continue
+				for i in (arr as PackedInt32Array):
+					var ddx := qx - x[i]
+					var ddy := qy - y[i]
+					var d2 := ddx * ddx + ddy * ddy
+					if d2 < best:
+						best = d2
+						bi = i
+		if best < 1e17:
+			break
 	return {"d": sqrt(best) if best < 1e17 else 1e9, "i": bi}
 
 

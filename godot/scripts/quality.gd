@@ -10,12 +10,12 @@ const LEVELS := ["performance", "balanced", "high", "ultra"]
 const PRESETS := {
 	"performance": {
 		"msaa": 0, "shadows": false, "splits": 1, "shadow_dist": 0.0, "shadow_size": 1024,
-		"glow": false, "trees": 0.3, "grass": 0.0, "corner_labels": false, "lod_m": 55.0, "car_shadows": false,
+		"glow": false, "trees": 0.3, "grass": 0.5, "corner_labels": false, "lod_m": 55.0, "car_shadows": false,
 		"props_shadows": false, "fog": false,
 	},
 	"balanced": {
 		"msaa": 0, "shadows": true, "splits": 2, "shadow_dist": 320.0, "shadow_size": 2048,
-		"glow": false, "trees": 0.65, "grass": 0.5, "corner_labels": true, "lod_m": 95.0, "car_shadows": true,
+		"glow": false, "trees": 0.65, "grass": 1.0, "corner_labels": true, "lod_m": 95.0, "car_shadows": true,
 		"props_shadows": false, "fog": true,
 	},
 	"high": {

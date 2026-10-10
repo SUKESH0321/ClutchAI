@@ -141,7 +141,7 @@ func _merge(meshes: Array) -> ArrayMesh:
 func _ground() -> void:
 	var plane := PlaneMesh.new()
 	plane.size = Vector2(9000, 9000)
-	var g := _mat(Color.WHITE, _noise_tex(Color("#6a9a4c"), 0.14, Color("#86b35c"), 0.16), 1.0)
+	var g := _mat(Color.WHITE, _noise_tex(Color("#27521d"), 0.16, Color("#386628"), 0.18), 1.0)
 	g.uv1_scale = Vector3(900, 900, 1)
 	var mi := _mesh_node(plane, g)
 	mi.position.y = -0.3
@@ -154,9 +154,10 @@ func _ground() -> void:
 	for i in n:
 		o0.append(-(circuit.hr[i] + 55.0))
 		o1.append(circuit.hl[i] + 55.0)
-	var mown := _mat(Color.WHITE, _noise_tex(Color("#70a050"), 0.1, Color("#86b560"), 0.1), 1.0)
+	var mown := _mat(Color.WHITE, _noise_tex(Color("#2a561f"), 0.14, Color("#3b6a2a"), 0.14), 1.0)
 	mown.uv1_scale = Vector3(1, 1, 1)
-	_mesh_node(Circuit.strip(S, o0, o1, -0.1, true, PackedColorArray(), 10.0), mown)
+	# (the mown ribbon mesh rendered brown under the warm light; the dark green ground plane is used everywhere instead)
+	# _mesh_node(Circuit.strip(S, o0, o1, -0.1, true, PackedColorArray(), 10.0), mown)
 
 
 func _track_surfaces() -> void:

@@ -133,11 +133,11 @@ for (const g of gprims) {
   for (let i = 0; i < g.pos.length; i += 3) for (let k = 0; k < 3; k++) { mn[k] = Math.min(mn[k], g.pos[i + k]); mx[k] = Math.max(mx[k], g.pos[i + k]); }
   const cx = (mn[0] + mx[0]) / 2, cz = (mn[2] + mx[2]) / 2, s = 1.0 / Math.max(mx[0] - mn[0], mx[2] - mn[2]);   // clump footprint = 1 m wide, scaled at placement
   for (let i = 0; i < g.pos.length; i += 3) { g.pos[i] = (g.pos[i] - cx) * s; g.pos[i + 1] = (g.pos[i + 1] - mn[1]) * s; g.pos[i + 2] = (g.pos[i + 2] - cz) * s; }
-  const r = simplify(g, 260, 0.35);
+  const r = simplify(g, 700, 0.15);
   const out = new Document(); const buf = out.createBuffer();
   const scene = out.createScene("grass"); const node = out.createNode(`grass_${gi}`); scene.addChild(node);
   const col = g.mat.getBaseColorFactor();
-  const mat = out.createMaterial("grass").setBaseColorFactor([0.30, 0.52, 0.2, 1]).setDoubleSided(true).setRoughnessFactor(0.95).setMetallicFactor(0);
+  const mat = out.createMaterial("grass").setBaseColorFactor([0.2, 0.4, 0.13, 1]).setDoubleSided(true).setRoughnessFactor(0.95).setMetallicFactor(0);
   const prim = out.createPrimitive().setMaterial(mat)
     .setAttribute("POSITION", out.createAccessor().setType("VEC3").setArray(r.pos).setBuffer(buf))
     .setIndices(out.createAccessor().setType("SCALAR").setArray(new Uint16Array(r.idx)).setBuffer(buf));
