@@ -1,0 +1,58 @@
+[
+ {
+  "file": "tree_00_large.glb",
+  "kind": "Large",
+  "height_m": 22,
+  "crown_radius_m": 10.49,
+  "triangles": 2918,
+  "source": "EZTree0.Large"
+ },
+ {
+  "file": "tree_01_medium.glb",
+  "kind": "Medium",
+  "height_m": 13,
+  "crown_radius_m": 5.66,
+  "triangles": 3307,
+  "source": "EZTree0.Medium010"
+ },
+ {
+  "file": "tree_02_medium.glb",
+  "kind": "Medium",
+  "height_m": 13,
+  "crown_radius_m": 5.91,
+  "triangles": 2517,
+  "source": "EZTree0.Medium011"
+ },
+ {
+  "file": "tree_03_bush.glb",
+  "kind": "Bush",
+  "height_m": 3.4,
+  "crown_radius_m": 2.67,
+  "triangles": 11002,
+  "source": "EZTree1.Bush006"
+ },
+ {
+  "file": "tree_04_large.glb",
+  "kind": "Large",
+  "height_m": 22,
+  "crown_radius_m": 9.58,
+  "triangles": 6471,
+  "source": "EZTree1.Large001"
+ },
+ {
+  "file": "tree_05_large.glb",
+  "kind": "Large",
+  "height_m": 22,
+  "crown_radius_m": 11.16,
+  "triangles": 4082,
+  "source": "EZTree1.Large009"
+ },
+ {
+  "file": "tree_06_medium.glb",
+  "kind": "Medium",
+  "height_m": 13,
+  "crown_radius_m": 5.82,
+  "triangles": 2472,
+  "source": "EZTree1.Medium002"
+ }
+]

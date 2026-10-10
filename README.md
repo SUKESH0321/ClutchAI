@@ -318,6 +318,13 @@ for how to run it, the controls, credits and `godot/check.ps1`.
 
 ![Godot broadcast camera](docs/screenshots/godot-broadcast-live.png)
 
+## Godot vegetation (supplied tree and grass models)
+The Godot client grows 7 supplied realistic trees (3 large, 3 medium, 1 bush; textured, alpha-cut leaves) and 4 grass clumps around every circuit, in forest
+stands with a 46 m clearance from the track edge, away from the pit lane, grandstands and the outside of corners. They are optimised from the 55 MB originals in
+`assets/` to about 5 MB by `scripts/godot_assets/build_vegetation.mjs` (run `npm install @gltf-transform/core @gltf-transform/extensions meshoptimizer sharp` next to it first), and drawn as
+chunked MultiMeshes with a visibility range. Press **Q** to change quality: grass is off in `performance`, half in `balanced`, full in `high`/`ultra`; trees cast shadows only in `high`/`ultra`
+(about 190 fps in chase on the RTX 3050 vs 340 in `balanced`). The licence of these two models is unknown (see ASSET_CREDITS.md).
+
 ## Interface layout
 
 A deep maroon-red racing identity. The 3D circuit fills the whole window under a compact single-row race header

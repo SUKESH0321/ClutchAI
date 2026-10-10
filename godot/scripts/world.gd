@@ -21,6 +21,8 @@ var _prop_nodes: Array = []
 var _shadow_pref: bool = true
 var _applied_wet: float = -1.0
 var _label_k: float = -1.0
+var vegetation: Vegetation
+var _veg_exclusions: Array = []
 
 
 func build(c: Circuit) -> void:
@@ -33,6 +35,7 @@ func build(c: Circuit) -> void:
 	_pit_complex()
 	_start_line()
 	_scenery()
+	_vegetation()
 	_labels()
 	for ch in get_children():
 		if ch is MultiMeshInstance3D:
@@ -363,7 +366,8 @@ func _scenery() -> void:
 	var large: Array = []
 	var small: Array = []
 	var tries := 0
-	while large.size() + small.size() < 700 and tries < 6000:
+	var tree_budget := 0 if Vegetation.available() else 700      # the supplied realistic trees (vegetation.gd) replace the Kenney scatter
+	while large.size() + small.size() < tree_budget and tries < 6000:
 		tries += 1
 		var px := minx - 450.0 + _rng.randf() * (maxx - minx + 900.0)
 		var py := miny - 450.0 + _rng.randf() * (maxy - miny + 900.0)
@@ -397,6 +401,7 @@ func _scenery() -> void:
 		node.transform = _facing_z(pos, vx, vz)
 		node.scale = Vector3(1.0, 0.8, 1.0)
 		add_child(node)
+		_veg_exclusions.append(Vector3(pos.x, -pos.z, 70.0))
 	stand.call(circuit.n - 16, true, "grandStandCovered", 30.0)
 	stand.call(circuit.n - 6, true, "grandStandCovered", 30.0)
 	stand.call(10, true, "grandStandAwning", 30.0)
@@ -427,6 +432,13 @@ func _scenery() -> void:
 		j += 41
 	add_child(Assets.multimesh("lightPostLarge", posts))
 	add_child(Assets.multimesh("billboardLow", boards))
+
+
+func _vegetation() -> void:
+	vegetation = Vegetation.new()
+	vegetation.name = "vegetation"
+	add_child(vegetation)
+	vegetation.build(circuit, _veg_exclusions)
 
 
 func _labels() -> void:
@@ -525,6 +537,8 @@ func apply_quality(P: Dictionary) -> void:
 		(p as MultiMeshInstance3D).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON if bool(P["props_shadows"]) else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	for l in _corner_label_nodes:
 		(l as Label3D).visible = bool(P["corner_labels"])
+	if vegetation != null:
+		vegetation.apply_quality(frac, float(P.get("grass", 1.0)), bool(P["props_shadows"]))
 
 
 ## Shadows only matter near the cars: switch the sun's shadow pass off while the camera is far above the circuit.
